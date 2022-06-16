@@ -1,10 +1,13 @@
 package com.tutk.IOTC;
 
+import androidx.annotation.Keep;
+
 /**
  * @Author: wangyj
  * @CreateDate: 2021/9/8
  * @Description:
  */
+@Keep
 public class St_AVClientStartInConfig {
     public int iotc_session_id;
     public int iotc_channel_id;
