@@ -12,7 +12,6 @@ import com.tutk.bean.TSupportStream
 import com.tutk.bean.TTimeZone
 import com.tutk.io.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.lang.ref.WeakReference
@@ -194,8 +193,26 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             mDefaultMaxCameraLimit = limit
         }
 
-        internal fun setCheck(check:Boolean){
+        internal fun setCheck(check: Boolean) {
             IS_CHECK = check
+        }
+
+        /**设置日志文件输出目录和大小*/
+        fun setLogPath(path: String, size: Int = 1024 * 1024 * 50) {
+            val attr = St_LogAttr()
+            attr.path = "${path}/IOTCAPIs.txt"
+            attr.file_max_size = size
+            IOTCAPIs.IOTC_Set_Log_Attr(attr)
+
+            val attr1 = St_LogAttr()
+            attr1.path = "${path}/TGAPIs.txt"
+            attr1.file_max_size = size
+            TUTKGlobalAPIs.TUTK_Set_Log_Attr(attr1)
+
+            val attr2 = St_LogAttr()
+            attr2.path="${path}/AVAPIs.txt"
+            attr2.file_max_size = size
+            AVAPIs.AV_Set_Log_Attr(attr2)
         }
     }
 
@@ -248,7 +265,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
      */
     private var mReconnectTime = 10000L
 
-    fun setReconnectTime(reconnectTime:Long){
+    fun setReconnectTime(reconnectTime: Long) {
         mReconnectTime = reconnectTime
     }
 
@@ -495,7 +512,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     fun reconnect(channel: Int = DEFAULT_AV_CHANNEL, account: String = "admin") {
-        Liotc.d("startConnectJob","reconnect")
+        Liotc.d("startConnectJob", "reconnect")
         disconnect()
         connect(channel, account)
     }
@@ -600,10 +617,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?,time:Long) {
+    private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long) {
         val iterator = mOnFrameCallbacks.iterator()
         while (iterator.hasNext()) {
-            iterator.next().receiveFrameData(this, channel, bitmap,time)
+            iterator.next().receiveFrameData(this, channel, bitmap, time)
         }
     }
 
@@ -760,10 +777,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                         }
                     }
 
-                    if(ret < 0 && mReconnectTime >= 1000 && connecting && connectJob?.isActive == true){
-                        Liotc.d("startConnectJob","reconnect [$mReconnectTime],[$ret]")
+                    if (ret < 0 && mReconnectTime >= 1000 && connecting && connectJob?.isActive == true) {
+                        Liotc.d("startConnectJob", "reconnect [$mReconnectTime],[$ret]")
                         delay(mReconnectTime)
-                        if(connecting && connectJob?.isActive == true){
+                        if (connecting && connectJob?.isActive == true) {
                             emit(IOTC_CONNECT_ING)
                         }
                         break
@@ -780,14 +797,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                 }
             }.flowOn(Dispatchers.IO)
                 .collect {
-                    when(it){
-                        IOTC_CONNECT_ING->{
+                    when (it) {
+                        IOTC_CONNECT_ING -> {
                             reconnect(DEFAULT_AV_CHANNEL)
                         }
-                        -1->{
+                        -1 -> {
                             d("startConnectJob", "disconnect")
                         }
-                        else->{
+                        else -> {
                             broadCameraSessionStatus(it)
                         }
                     }
@@ -882,12 +899,12 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**开启视频直播*/
     @Synchronized
-    internal fun startShow(context: Context?, channel: Int,ratation:Int = 0) {
+    internal fun startShow(context: Context?, channel: Int, ratation: Int = 0) {
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
-                avChannel.startShow(context,ratation)
+                avChannel.startShow(context, ratation)
                 break
             }
         }
@@ -912,7 +929,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
-                avChannel.setAudioTrackStatus(context, status,LocalRecordHelper.recording)
+                avChannel.setAudioTrackStatus(context, status, LocalRecordHelper.recording)
                 break
             }
         }
@@ -1180,7 +1197,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     override fun onAVChannelReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long) {
-        broadCameraReceiverFrameData(channel, bitmap,time)
+        broadCameraReceiverFrameData(channel, bitmap, time)
     }
 
     override fun onAVChannelReceiverFrameInfo(

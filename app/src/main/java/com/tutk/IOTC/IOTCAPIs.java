@@ -560,8 +560,8 @@ public class IOTCAPIs {
 
     static {
         try {
-            System.loadLibrary("IOTCAPIs");
-//		System.loadLibrary("IOTCAPIsT");
+//            System.loadLibrary("IOTCAPIs");
+		System.loadLibrary("IOTCAPIsT");
         } catch (UnsatisfiedLinkError ule) {
             System.out.println("loadLibrary(IOTCAPIs)," + ule.getMessage());
         }

@@ -263,8 +263,8 @@ public class AVAPIs {
     }
 
     static { try {
-        System.loadLibrary("AVAPIs");
-//        System.loadLibrary("AVAPIsT");
+//        System.loadLibrary("AVAPIs");
+        System.loadLibrary("AVAPIsT");
     }
     catch(UnsatisfiedLinkError ule){
         System.out.println("loadLibrary(AVAPIs),"+ule.getMessage());

@@ -29,7 +29,8 @@ public class TUTKGlobalAPIs {
 
     static {
         try {
-            System.loadLibrary("TUTKGlobalAPIs");
+//            System.loadLibrary("TUTKGlobalAPIs");
+            System.loadLibrary("TUTKGlobalAPIsT");
         } catch(UnsatisfiedLinkError ule) {
             System.out.println("loadLibrary(TUTKGlobalAPIs)" + ule.getMessage());
             Liotc.INSTANCE.e("TUTKGlobalAPIs", "===load TUTKGlobalAPIs error");
