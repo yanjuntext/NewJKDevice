@@ -1,4 +1,2 @@
-rootProject.name = "JKDevice"
+rootProject.name = "NewJKDevice"
 include ':app'
-
-include ':jkdevice'
