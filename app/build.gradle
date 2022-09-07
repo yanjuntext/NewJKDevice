@@ -61,7 +61,7 @@ android {
 
     afterEvaluate {
         publishing {
-            def versionName = "1.1.10" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "1.1.11" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {
@@ -125,9 +125,38 @@ task androidSourcesJar(type: Jar) {
     classifier = 'sources'
 //    from android.sourceSets.main.java.sourceFiles
 }
+
+
+//编译groovy代码时采用 UTF-8
+tasks.withType(GroovyCompile) {
+    groovyOptions.encoding = "MacRoman"
+}
+
+//编译JAVA文件时采用UTF-8
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+task javadoc(type: Javadoc) {
+    failOnError false
+    source = android.sourceSets.main.java.sourceFiles
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    classpath += configurations.compile
+}
+
+// 打包文档jar
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
 artifacts {
     archives androidSourcesJar
 }
+
+
+
+
 //task sourcesJar(type: Jar) {
 //    if (project.hasProperty("kotlin")) {
 //        from android.sourceSets.main.java.getSrcDirs()
