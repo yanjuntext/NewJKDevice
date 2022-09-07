@@ -49,7 +49,7 @@ android {
 
     afterEvaluate {
         publishing {
-            def versionName = "1.1.12" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "1.1.13" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {
@@ -85,37 +85,37 @@ dependencies {
     //协程
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0"
 }
-task generateSourcesJar(type: Jar) {
-    if (project.hasProperty("kotlin")) {
-        from android.sourceSets.main.java.getSrcDirs()
-    } else if (project.hasProperty("android")) {
-        println '===> project java'
-        from android.sourceSets.main.jave.sourceFiles
-    } else {
-        println '===> project java & kotlin'
-        from sourceSets.main.allSource
-    }
-    classifier = 'sources'
-}
-
-// 源代码一起打包
-task androidSourcesJar(type: Jar) {
-    if (project.hasProperty("kotlin")) {
-        from android.sourceSets.main.java.getSrcDirs()
-    } else if (project.hasProperty("android")) {
-        println '===> project java'
-        from android.sourceSets.main.jave.sourceFiles
-    } else {
-        println '===> project java & kotlin'
-        from sourceSets.main.allSource
-    }
-    classifier = 'sources'
-//    from android.sourceSets.main.java.sourceFiles
-}
-
-artifacts {
-    archives androidSourcesJar
-}
+//task generateSourcesJar(type: Jar) {
+//    if (project.hasProperty("kotlin")) {
+//        from android.sourceSets.main.java.getSrcDirs()
+//    } else if (project.hasProperty("android")) {
+//        println '===> project java'
+//        from android.sourceSets.main.jave.sourceFiles
+//    } else {
+//        println '===> project java & kotlin'
+//        from sourceSets.main.allSource
+//    }
+//    classifier = 'sources'
+//}
+//
+//// 源代码一起打包
+//task androidSourcesJar(type: Jar) {
+//    if (project.hasProperty("kotlin")) {
+//        from android.sourceSets.main.java.getSrcDirs()
+//    } else if (project.hasProperty("android")) {
+//        println '===> project java'
+//        from android.sourceSets.main.jave.sourceFiles
+//    } else {
+//        println '===> project java & kotlin'
+//        from sourceSets.main.allSource
+//    }
+//    classifier = 'sources'
+////    from android.sourceSets.main.java.sourceFiles
+//}
+//
+//artifacts {
+//    archives androidSourcesJar
+//}
 
 
 
