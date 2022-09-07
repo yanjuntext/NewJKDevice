@@ -67,9 +67,11 @@ android {
                     from components.release
                     // You can then customize attributes of the publication as shown below.
                     //建议和github地址对应，否则对jitpack无效
-                    groupId = 'com.github.yanjuntext'
+//                    groupId = 'com.github.yanjuntext'
+                    groupId = 'com.jk.device'
                     //建议和github仓库名称对应，否则对jitpack无效
-                    artifactId = 'NewJKDevice'
+//                    artifactId = 'NewJKDevice'
+                    artifactId = 'device'
                     //建议和release的tag相同，否则对jitpack无效
                     version = versionName
                 }
