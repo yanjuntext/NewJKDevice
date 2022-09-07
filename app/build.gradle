@@ -7,7 +7,7 @@ plugins {
 
 android {
     compileSdkVersion 31
-    buildToolsVersion "32.0.0"
+//    buildToolsVersion "31.0.0"
 
 
     defaultConfig {
@@ -42,35 +42,22 @@ android {
 
     sourceSets {
         main {
-//            manifest.srcFuke 'AndroidManifest.xml'
-//            java.srcDirs = ['src']
-//            resources.srcDirs = ['src']
-//            aidl.srcDirs =['src/aidl']
-//            renderscript.srcDirs = ['src']
-//            res.srcDirs = ['res']
-//            assets.srcDirs = ['assets']
             jni.srcDirs = ['src/jni']
             jniLibs.srcDirs 'src/jni/jniLibs'
-
-//            proto{
-//                srcDir 'src/proto'
-//                include '**/*.proto'
-//            }
         }
     }
 
     afterEvaluate {
         publishing {
-            def versionName = "1.1.11" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "1.1.12" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {
                     from components.release
-                    // You can then customize attributes of the publication as shown below.
                     //建议和github地址对应，否则对jitpack无效
-                    groupId = 'com.jk.device'
+                    groupId = 'com.github.yanjuntext'
                     //建议和github仓库名称对应，否则对jitpack无效
-                    artifactId = 'device'
+                    artifactId = 'NewJKDevice'
                     //建议和release的tag相同，否则对jitpack无效
                     version = versionName
                 }
@@ -124,30 +111,6 @@ task androidSourcesJar(type: Jar) {
     }
     classifier = 'sources'
 //    from android.sourceSets.main.java.sourceFiles
-}
-
-
-//编译groovy代码时采用 UTF-8
-tasks.withType(GroovyCompile) {
-    groovyOptions.encoding = "MacRoman"
-}
-
-//编译JAVA文件时采用UTF-8
-tasks.withType(JavaCompile) {
-    options.encoding = "UTF-8"
-}
-
-task javadoc(type: Javadoc) {
-    failOnError false
-    source = android.sourceSets.main.java.sourceFiles
-    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-    classpath += configurations.compile
-}
-
-// 打包文档jar
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
 }
 
 artifacts {
