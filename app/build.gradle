@@ -49,15 +49,17 @@ android {
 
     afterEvaluate {
         publishing {
-            def versionName = "2.0.0" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "2.0.1" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {
                     from components.release
                     //建议和github地址对应，否则对jitpack无效
-                    groupId = 'com.github.yanjuntext'
+//                    groupId = 'com.github.yanjuntext'
+                    groupId = 'com.jk.device'
                     //建议和github仓库名称对应，否则对jitpack无效
-                    artifactId = 'NewJKDevice'
+//                    artifactId = 'NewJKDevice'
+                    artifactId = 'device'
                     //建议和release的tag相同，否则对jitpack无效
                     version = versionName
                 }
