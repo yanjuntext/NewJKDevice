@@ -985,7 +985,8 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         name: String?,
         alias: String?,
         tracks: Int,
-        file: String?
+        file: String?,
+        date:Long = System.currentTimeMillis()/1000
     ) {
         if (name.isNullOrEmpty() || alias.isNullOrEmpty() || file.isNullOrEmpty() || mSendFileUri != null || !mSendFile.isNullOrEmpty()) {
             onAVChannelSendFileStatus(SendFileStatus.RDSENDER_STATE_STOP, 0, 0, 0)
@@ -993,7 +994,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
         //通知设备开始发送音频文件
 
-        sendSendFileOrder(channel, name, alias, tracks, System.currentTimeMillis() / 1000)
+        sendSendFileOrder(channel, name, alias, tracks, date)
         mAvSendFileChannel = channel
         mSendFile = file
         mSendFileUri = null
@@ -1006,14 +1007,15 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         name: String?,
         alias: String?,
         tracks: Int,
-        file: Uri?
+        file: Uri?,
+        date:Long = System.currentTimeMillis()/1000
     ) {
         if (name.isNullOrEmpty() || alias.isNullOrEmpty() || file == null || mSendFileUri != null || !mSendFile.isNullOrEmpty()) {
             onAVChannelSendFileStatus(SendFileStatus.RDSENDER_STATE_STOP, 0, 0, 0)
             return
         }
         //通知设备开始发送音频文件
-        sendSendFileOrder(channel, name, alias, tracks, System.currentTimeMillis() / 1000)
+        sendSendFileOrder(channel, name, alias, tracks, date)
         mAvSendFileChannel = channel
         mSendFileUri = file
         mSendFile = null
