@@ -32,10 +32,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-//    compileOptions {
-//        sourceCompatibility JavaVersion.VERSION_1_8
-//        targetCompatibility JavaVersion.VERSION_1_8
-//    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
     kotlinOptions {
         jvmTarget = '1.8'
     }
@@ -62,16 +62,16 @@ android {
                     version = versionName
                 }
             }
-//            repositories {
-//                // 下面这部分，不是很清楚加不加，但是最后加上
-//                maven {
-//                    // change URLs to point to your repos, e.g. http://my.org/repo
-//                    def baseUrl = buildDir.getParent()
-//                    def releasesRepoUrl = "$baseUrl/repos/releases"
-//                    def snapshotsRepoUrl = "$baseUrl/repos/snapshots"
-//                    url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-//                }
-//            }
+            repositories {
+                // 下面这部分，不是很清楚加不加，但是最后加上
+                maven {
+                    // change URLs to point to your repos, e.g. http://my.org/repo
+                    def baseUrl = buildDir.getParent()
+                    def releasesRepoUrl = "$baseUrl/repos/releases"
+                    def snapshotsRepoUrl = "$baseUrl/repos/snapshots"
+                    url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                }
+            }
         }
     }
 
@@ -81,41 +81,41 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.6.0'
-    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.appcompat:appcompat:1.3.1'
     //协程
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.3"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0"
 }
-//task generateSourcesJar(type: Jar) {
-//    if (project.hasProperty("kotlin")) {
-//        from android.sourceSets.main.java.getSrcDirs()
-//    } else if (project.hasProperty("android")) {
-//        println '===> project java'
-//        from android.sourceSets.main.jave.sourceFiles
-//    } else {
-//        println '===> project java & kotlin'
-//        from sourceSets.main.allSource
-//    }
-//    classifier = 'sources'
-//}
-//
-//// 源代码一起打包
-//task androidSourcesJar(type: Jar) {
-//    if (project.hasProperty("kotlin")) {
-//        from android.sourceSets.main.java.getSrcDirs()
-//    } else if (project.hasProperty("android")) {
-//        println '===> project java'
-//        from android.sourceSets.main.jave.sourceFiles
-//    } else {
-//        println '===> project java & kotlin'
-//        from sourceSets.main.allSource
-//    }
-//    classifier = 'sources'
-////    from android.sourceSets.main.java.sourceFiles
-//}
-//
-//artifacts {
-//    archives androidSourcesJar
-//}
+task generateSourcesJar(type: Jar) {
+    if (project.hasProperty("kotlin")) {
+        from android.sourceSets.main.java.getSrcDirs()
+    } else if (project.hasProperty("android")) {
+        println '===> project java'
+        from android.sourceSets.main.jave.sourceFiles
+    } else {
+        println '===> project java & kotlin'
+        from sourceSets.main.allSource
+    }
+    classifier = 'sources'
+}
+
+// 源代码一起打包
+task androidSourcesJar(type: Jar) {
+    if (project.hasProperty("kotlin")) {
+        from android.sourceSets.main.java.getSrcDirs()
+    } else if (project.hasProperty("android")) {
+        println '===> project java'
+        from android.sourceSets.main.jave.sourceFiles
+    } else {
+        println '===> project java & kotlin'
+        from sourceSets.main.allSource
+    }
+    classifier = 'sources'
+//    from android.sourceSets.main.java.sourceFiles
+}
+
+artifacts {
+    archives androidSourcesJar
+}
 
 
 
