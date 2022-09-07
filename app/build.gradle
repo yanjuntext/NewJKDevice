@@ -13,8 +13,8 @@ android {
 //        applicationId "com.tutk.IOTC"
         minSdkVersion 21
         targetSdkVersion 31
-        versionCode 3
-        versionName "1.0.4"
+        versionCode 4
+        versionName "1.1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -68,7 +68,7 @@ android {
                     //建议和github地址对应，否则对jitpack无效
                     groupId = 'com.github.yanjuntext'
                     //建议和github仓库名称对应，否则对jitpack无效
-                    artifactId = 'jkdevice'
+                    artifactId = 'NewJKDevice'
                     //建议和release的tag相同，否则对jitpack无效
                     version = versionName
                 }
