@@ -7,7 +7,7 @@ plugins {
 
 android {
     compileSdkVersion 31
-//    buildToolsVersion "31.0.0"
+    buildToolsVersion "31.0.0"
 
 
     defaultConfig {
@@ -49,7 +49,7 @@ android {
 
     afterEvaluate {
         publishing {
-            def versionName = "1.1.14" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "1.1.15" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {
@@ -62,16 +62,16 @@ android {
                     version = versionName
                 }
             }
-            repositories {
-                // 下面这部分，不是很清楚加不加，但是最后加上
-                maven {
-                    // change URLs to point to your repos, e.g. http://my.org/repo
-                    def baseUrl = buildDir.getParent()
-                    def releasesRepoUrl = "$baseUrl/repos/releases"
-                    def snapshotsRepoUrl = "$baseUrl/repos/snapshots"
-                    url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-                }
-            }
+//            repositories {
+//                // 下面这部分，不是很清楚加不加，但是最后加上
+//                maven {
+//                    // change URLs to point to your repos, e.g. http://my.org/repo
+//                    def baseUrl = buildDir.getParent()
+//                    def releasesRepoUrl = "$baseUrl/repos/releases"
+//                    def snapshotsRepoUrl = "$baseUrl/repos/snapshots"
+//                    url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//                }
+//            }
         }
     }
 
