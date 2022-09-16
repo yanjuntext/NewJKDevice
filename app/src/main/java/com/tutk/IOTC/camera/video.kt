@@ -55,6 +55,8 @@ class RecvVideoJob(
 
     private var isFirstIFrame = true
 
+    private var isFirstRecording = false;
+
     fun setSid(sid: Int) {
         mSID = sid
     }
@@ -72,6 +74,17 @@ class RecvVideoJob(
 
     private fun getFrameBitmapInfo(bmp: Bitmap?) = RecvVideoInfo(-2, bitmap = bmp)
 
+
+    private fun requestIFrame(){
+        if (isRunning && isActive() && getAvIndex() >= 0) {
+            d(TAG, "发送511命令")
+            avChannel?.IOCtrlQueue?.Enqueue(
+                getAvIndex(),
+                511,
+                Packet.intToByteArray_Little(0)
+            )
+        }
+    }
 
     fun start() {
         isRunning = true
@@ -166,17 +179,23 @@ class RecvVideoJob(
 //                                d(TAG, "camera video data nReadSize[$nReadSize],setSize[]")
 
 //                            if (avChannel?.recording == true && fram.isIFrame() && LocalRecordHelper.recording) {
+
+                                if(!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording){
+                                    isFirstRecording = true
+                                    requestIFrame()
+                                }
+
                                 if (fram.isIFrame() && LocalRecordHelper.recording) {
                                     LocalRecordHelper.setParseBuffer(fram.frmData)
+                                    LocalRecordHelper.canRecording = true
+                                }
+
+                                if(!LocalRecordHelper.recording){
+                                    isFirstRecording = false
                                 }
 
                                 nCodecId = fram.codec_id.toInt()
                                 nOnlineNumber = fram.onlineNum.toInt()
-
-//                                d(
-//                                    TAG,
-//                                    "camera video data mAVChannel.VideoFrameQueue[${avChannel?.VideoFrameQueue?.mSize}],nCodeId[$nCodecId],onlineNum[$nOnlineNumber]"
-//                                )
 
                                 when (nCodecId) {
                                     AVFrame.MEDIA_CODEC_VIDEO_H264,
@@ -754,6 +773,8 @@ internal object LocalRecordHelper {
     internal var recording = false
 
     private var startRecording = false
+    //是否可以录像了
+    internal var canRecording = false
 
     private var mRecordJob: Job? = null
 
@@ -833,17 +854,26 @@ internal object LocalRecordHelper {
         mRecordJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
                 recording = true
-                if ((mAvChannel?.get()?.SID ?: -1) > 0) {
-                    mAvChannel?.get()?.IOCtrlQueue?.Enqueue(
-                        AVIOCTRLDEFs.IOTYPE_USER_IPCAM_START,
-                        Packet.intToByteArray_Little(0)
-                    )
-                }
+//                if ((mAvChannel?.get()?.SID ?: -1) > 0) {
+//                    mAvChannel?.get()?.IOCtrlQueue?.Enqueue(
+//                        AVIOCTRLDEFs.IOTYPE_USER_IPCAM_START,
+//                        Packet.intToByteArray_Little(0)
+//                    )
+//                }
                 //开启录像要开启音频接收
                 mAvChannel?.get()?.let { avChannel ->
                     avChannel.setAudioTrackStatus(mContext?.get(), avChannel.audioPlayStatus, true)
                 }
-                delay(500)
+//                delay(500)
+                var delaycount = 0
+                while (!canRecording){
+                    delay(5)
+                    delaycount++
+                    if(delaycount > 700){
+                        break
+                    }
+                }
+
                 if (recording && mRecordJob?.isActive == true) {
                     d(TAG, "startRecord width[$width],height[$height] 1")
                     mLocalRecord.setRecorderVideoTrack(width, height)
@@ -942,6 +972,9 @@ internal object LocalRecordHelper {
 
     internal fun stopRecord() {
         d(TAG, "stopRecord 111")
+
+        canRecording = false
+
         mRecordJob?.cancel()
         mRecordJob = null
 
