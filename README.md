@@ -16,6 +16,6 @@ allprojects {
 ***Step 2.*** Add the dependency
 ```
 dependencies {
-    implementation 'com.github.yanjuntext:JKDevice:1.0.13_canary_16'
+    implementation 'com.github.yanjuntext:NewJKDevice:v2.0.2'
 }
 ```
