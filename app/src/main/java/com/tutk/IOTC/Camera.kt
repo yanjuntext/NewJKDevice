@@ -274,6 +274,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         mOnSessionChannelCallbacks.clear()
     }
 
+    fun getSessionMode():Int{
+        return mSessionMode
+    }
+
     /*----------------------------------IO命令------------------------------------------*/
     fun registerIOCallback(callback: OnIOCallback?) {
         callback ?: return

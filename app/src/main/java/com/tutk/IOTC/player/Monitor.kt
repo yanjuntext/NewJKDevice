@@ -328,7 +328,13 @@ class Monitor @JvmOverloads constructor(
     }
 
     fun startRecord(file: String?, callback: OnResultCallback<RecordStatus>?) {
-        mCamera?.startRecord(context, mAvChannel, file, mBitmapWidth, mBitmapHeight) { result ->
+        mCamera?.startRecord(
+            context,
+            mAvChannel,
+            file,
+            if (mBitmapWidth <= 1280) 1280 else mBitmapWidth,
+            if(mBitmapHeight <= 720) 720 else mBitmapHeight
+        ) { result ->
             isRecording = result == RecordStatus.RECORDING
             callback?.onResult(result)
         }
@@ -355,10 +361,10 @@ class Monitor @JvmOverloads constructor(
 
     fun setMonitorVideoQuality(quality: VideoQuality) {
         if (mCamera?.isSessionConnected() == true) {
-            if (isRecording) {
-                stopRecord()
-            }
-            stopShow()
+//            if (isRecording) {
+//                stopRecord()
+//            }
+//            stopShow()
             mCamera?.setVideoQuality(mAvChannel, quality)
 
         }
@@ -847,7 +853,7 @@ class Monitor @JvmOverloads constructor(
                         }
                     }
                 }
-                mCamera?.startShow(context, mAvChannel)
+//                mCamera?.startShow(context, mAvChannel)
             }
         }
     }

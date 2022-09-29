@@ -124,7 +124,6 @@ class RecvVideoJob(
                     AVAPIs.avClientCleanBuf(getAvIndex())
                 }
 
-                emit(RecvVideoInfo(Camera.EXTRA_EVENT_HAD_CLEAN_VIDEOBUF))
                 avChannel?.VideoFrameQueue?.removeAll()
                 mNoFramIndex = 0
 
@@ -136,6 +135,8 @@ class RecvVideoJob(
                         Packet.intToByteArray_Little(0)
                     )
                 }
+                //发送过511命令之后再通知上层清楚命令，优先保证视频获取
+                emit(RecvVideoInfo(Camera.EXTRA_EVENT_HAD_CLEAN_VIDEOBUF))
                 while (isRunning) {
                     if (mSID >= 0 && getAvIndex() >= 0) {
                         if (System.currentTimeMillis() - nLastTimeStamp > 1000L) {
