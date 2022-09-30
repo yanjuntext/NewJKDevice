@@ -901,6 +901,10 @@ class MonitorVer @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
+                            VideoQuality.SSD.value->{
+                                mVideoQuality = VideoQuality.SSD
+                                mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
+                            }
                             else -> {
                                 mVideoQuality = VideoQuality.SD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SD)
@@ -925,6 +929,10 @@ class MonitorVer @JvmOverloads constructor(
                             VideoQuality.SMOOTH.value -> {
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
+                            }
+                            VideoQuality.SSD.value->{
+                                mVideoQuality = VideoQuality.SSD
+                                mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
                             else -> {
                                 mVideoQuality = VideoQuality.SD

@@ -1,6 +1,5 @@
 package com.tutk.IOTC.camera
 
-import android.app.admin.DeviceAdminInfo
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -75,7 +74,7 @@ class RecvVideoJob(
     private fun getFrameBitmapInfo(bmp: Bitmap?) = RecvVideoInfo(-2, bitmap = bmp)
 
 
-    private fun requestIFrame(){
+    private fun requestIFrame() {
         if (isRunning && isActive() && getAvIndex() >= 0) {
             d(TAG, "发送511命令")
             avChannel?.IOCtrlQueue?.Enqueue(
@@ -157,10 +156,13 @@ class RecvVideoJob(
                             pFrmInfoBuf.size, outFrmInfoBufSize, pFrmNo
                         )
                         d(TAG, "amera video data nReadSize=[$nReadSize],running[$isRunning]")
-                        d(TAG, "AVAPIs.AV_ER_INCOMPLETE_FRAME========== nReadSize=[$nReadSize],running[$isRunning]")
+                        d(
+                            TAG,
+                            "AVAPIs.AV_ER_INCOMPLETE_FRAME========== nReadSize=[$nReadSize],running[$isRunning]"
+                        )
 
-                        when{
-                            nReadSize >= 0->{
+                        when {
+                            nReadSize >= 0 -> {
                                 avChannel?.videoBPS = (avChannel?.videoBPS ?: 0) + outBufSize[0]
                                 nFrmCount++
 
@@ -181,7 +183,7 @@ class RecvVideoJob(
 
 //                            if (avChannel?.recording == true && fram.isIFrame() && LocalRecordHelper.recording) {
 
-                                if(!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording){
+                                if (!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording) {
                                     isFirstRecording = true
                                     requestIFrame()
                                 }
@@ -191,7 +193,7 @@ class RecvVideoJob(
                                     LocalRecordHelper.canRecording = true
                                 }
 
-                                if(!LocalRecordHelper.recording){
+                                if (!LocalRecordHelper.recording) {
                                     isFirstRecording = false
                                 }
 
@@ -232,7 +234,11 @@ class RecvVideoJob(
                                     AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
                                         try {
                                             val bmp =
-                                                BitmapFactory.decodeByteArray(framData, 0, nReadSize)
+                                                BitmapFactory.decodeByteArray(
+                                                    framData,
+                                                    0,
+                                                    nReadSize
+                                                )
                                             emit(getFrameBitmapInfo(bmp))
                                             avChannel?.lastFrame = bmp
                                         } catch (e: Exception) {
@@ -293,7 +299,7 @@ class RecvVideoJob(
                                             nIncompleteFrmCount++
                                         }
                                         AVFrame.MEDIA_CODEC_VIDEO_H264,
-                                        AVFrame.MEDIA_CODEC_VIDEO_H265-> {
+                                        AVFrame.MEDIA_CODEC_VIDEO_H265 -> {
                                             if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2] == 0) {
                                                 nIncompleteFrmCount++
                                             } else {
@@ -307,7 +313,10 @@ class RecvVideoJob(
                                                         ?: PlayMode.PLAY_LIVE.value
                                                 )
                                                 if (frame.isIFrame() || pFrmNo[0].toLong() == nPrevFrmNo + 1) {
-                                                    d(TAG, "AVAPIs.AV_ER_INCOMPLETE_FRAME========== addLast")
+                                                    d(
+                                                        TAG,
+                                                        "AVAPIs.AV_ER_INCOMPLETE_FRAME========== addLast"
+                                                    )
                                                     nPrevFrmNo = pFrmNo[0].toLong()
                                                     avChannel?.VideoFrameQueue?.addLast(frame)
                                                     nFlow_total_actual_frame_size += outBufSize[0]
@@ -656,7 +665,12 @@ class DecodeVideoJob(
                                                 avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
 //                                                emit(bmp)
 //                                                emit(avFrame.timestamp)
-                                                emit(DecoderVideoInfo(bmp,avFrame.deviceCurrentTime))
+                                                emit(
+                                                    DecoderVideoInfo(
+                                                        bmp,
+                                                        avFrame.deviceCurrentTime
+                                                    )
+                                                )
                                                 avChannel.lastFrame = bmp
                                                 if (System.currentTimeMillis() - lastUpdateDispFrmPreSec > 60000) {
                                                     lastUpdateDispFrmPreSec =
@@ -730,8 +744,15 @@ class DecodeVideoJob(
 
             }.flowOn(Dispatchers.IO)
                 .collect {
-                    iavChannelStatus?.onAVChannelReceiverFrameData(avChannel?.mChannel ?: -1, it.bitmap)
-                    iavChannelStatus?.onAVChannelReceiverFrameData(avChannel?.mChannel?:-1,it.bitmap,it.time)
+                    iavChannelStatus?.onAVChannelReceiverFrameData(
+                        avChannel?.mChannel ?: -1,
+                        it.bitmap
+                    )
+                    iavChannelStatus?.onAVChannelReceiverFrameData(
+                        avChannel?.mChannel ?: -1,
+                        it.bitmap,
+                        it.time
+                    )
                 }
         }
 
@@ -756,7 +777,7 @@ class DecodeVideoJob(
     }
 }
 
-internal class DecoderVideoInfo(val bitmap: Bitmap?,val time:Long)
+internal class DecoderVideoInfo(val bitmap: Bitmap?, val time: Long)
 
 /**录像帮助类*/
 internal object LocalRecordHelper {
@@ -774,6 +795,7 @@ internal object LocalRecordHelper {
     internal var recording = false
 
     private var startRecording = false
+
     //是否可以录像了
     internal var canRecording = false
 
@@ -867,10 +889,10 @@ internal object LocalRecordHelper {
                 }
 //                delay(500)
                 var delaycount = 0
-                while (!canRecording){
+                while (!canRecording) {
                     delay(5)
                     delaycount++
-                    if(delaycount > 700){
+                    if (delaycount > 700) {
                         break
                     }
                 }
@@ -1024,6 +1046,6 @@ internal object LocalRecordHelper {
  * FHD不管是在支持FHD的设备，还是在不支持FHD的设备上，代表的都是最搞得清晰度；SMOOTH也一样.
  */
 enum class VideoQuality(val value: Int) {
-    FHD(1), HD(2), SD(3), SMOOTH(5)
+    FHD(1), HD(2), SD(3), SSD(4), SMOOTH(5)
 }
 
