@@ -891,7 +891,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
-                avChannel.startShow(context,ratation)
+                avChannel.startShow(context,ratation,withYuv)
                 break
             }
         }

@@ -134,6 +134,9 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     private var mPlayTimeJob: Job? = null
 
+    /**是否使用libyuv解析图片*/
+    var withYuv = false
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -345,7 +348,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         mCamera?.start(mAvChannel, mCamera?.viewAccount ?: "admin", mCamera?.psw ?: "")
         mCamera.getAudioCodec(mAvChannel)
-        mCamera?.startShow(context, mAvChannel)
+        mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
         setAudioTrackStatus(mAudioTrackStatus)
 
     }

@@ -575,6 +575,7 @@ class DecodeVideoJob(
                                             mVideoBuffer?.flip()
                                             mVideoOutBuffer?.clear()
                                             videoDecodeResult = if(withYuv){
+                                                d("yuv decode 111")
                                                 mVideoDecoder?.decodeWithYUV(
                                                     mVideoBuffer,
                                                     avFrameSize,
@@ -634,11 +635,13 @@ class DecodeVideoJob(
                                                         Bitmap.Config.ARGB_8888
                                                     )
                                                     if(withYuv){
+                                                        d("yuv decode 222")
                                                         LibyuvUtils.I420ToRGBA(mYuvData,mArgbData,videoWidth,videoHeight)
                                                         val wrap = ByteBuffer.wrap(mArgbData)
                                                         wrap.rewind()
                                                         wrap.position(0)
                                                         bmp?.copyPixelsFromBuffer(wrap)
+                                                        d("yuv decode 333")
                                                     }else{
                                                         bmp?.copyPixelsFromBuffer(mVideoOutBuffer)
                                                     }

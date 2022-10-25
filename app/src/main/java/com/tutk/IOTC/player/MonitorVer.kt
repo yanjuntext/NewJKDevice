@@ -135,6 +135,8 @@ class MonitorVer @JvmOverloads constructor(
 
     var isPlaying = false
 
+    /**是否使用libyuv解析图片*/
+    var withYuv = false
 
     init {
         mSurHolder = holder
@@ -382,10 +384,10 @@ class MonitorVer @JvmOverloads constructor(
 
     fun setMonitorVideoQuality(quality: VideoQuality) {
         if (mCamera?.isSessionConnected() == true) {
-            if (isRecording) {
-                stopRecord()
-            }
-            stopShow()
+//            if (isRecording) {
+//                stopRecord()
+//            }
+//            stopShow()
             mCamera?.setVideoQuality(mAvChannel, quality)
 
         }
@@ -880,7 +882,7 @@ class MonitorVer @JvmOverloads constructor(
                 Liotc.d("Monitor", " Audio Codec resp ")
                 if (isShowing) {
                     isPlaying = true
-                    mCamera?.startShow(context, mAvChannel)
+                    mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
                 }
 //                renderJob()
             }
@@ -941,7 +943,7 @@ class MonitorVer @JvmOverloads constructor(
                         }
                     }
                 }
-                mCamera?.startShow(context, mAvChannel)
+//                mCamera?.startShow(context, mAvChannel)
             }
         }
     }
