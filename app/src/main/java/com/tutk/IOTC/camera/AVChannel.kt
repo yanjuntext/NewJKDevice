@@ -157,17 +157,20 @@ class AVChannel(
     }
 
     /**视频直播*/
-    internal fun startShow(context: Context?, ratation: Int = 0) {
+    internal fun startShow(context: Context?, ratation: Int = 0, withYUV: Boolean = false) {
 
         if (mRecvVideoJob == null) {
             mRecvVideoJob = RecvVideoJob(this, iavChannelStatus = iavChannelStatus)
         }
 
         if (mDecVideoJob == null) {
-            mDecVideoJob = DecodeVideoJob(this, iavChannelStatus = iavChannelStatus)
+            mDecVideoJob =
+                DecodeVideoJob(this, iavChannelStatus = iavChannelStatus, withYuv = withYUV)
         }
 
         mRecvVideoJob?.setSid(SID)
+
+        mDecVideoJob?.withYuv = withYUV
 
         mRecvVideoJob?.start()
         mDecVideoJob?.start(context)

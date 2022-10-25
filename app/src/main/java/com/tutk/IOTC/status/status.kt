@@ -62,7 +62,7 @@ enum class WifiStatus(val value: Int) {
  * @param TIMING 定时录像
  */
 enum class RecordMode(val value: Int) {
-    OFF(1),
+    OFF(0),
     FULL_TIME(2),
     ALARM(1),
     TIMING(2)

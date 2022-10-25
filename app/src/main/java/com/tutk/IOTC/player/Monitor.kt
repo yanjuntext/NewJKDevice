@@ -118,7 +118,8 @@ class Monitor @JvmOverloads constructor(
     /**宽高比例*/
     private var widthRation = 16
     private var heightRation = 9
-
+    /**是否使用libyuv解析图片*/
+    var withYuv = false
 
     init {
         mSurHolder = holder
@@ -801,7 +802,7 @@ class Monitor @JvmOverloads constructor(
         when (avIOCtrlMsgType) {
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETAUDIOOUTFORMAT_RESP -> {
                 Liotc.d("Monitor", " Audio Codec resp ")
-                mCamera?.startShow(context, mAvChannel)
+                mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
 //                renderJob()
             }
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP -> {

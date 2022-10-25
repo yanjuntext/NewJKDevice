@@ -886,7 +886,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**开启视频直播*/
     @Synchronized
-    internal fun startShow(context: Context?, channel: Int,ratation:Int = 0) {
+    internal fun startShow(context: Context?, channel: Int,ratation:Int = 0,withYuv:Boolean = false) {
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val avChannel = iterator.next()

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.decoder.util.DecMpeg4
 import com.jkapp.android.media.VideoDecoder
+import com.qxt.yuv420.LibyuvUtils
 import com.tutk.IOTC.*
 import com.tutk.IOTC.listener.OnResultCallback
 import com.tutk.IOTC.status.PlayMode
@@ -400,7 +401,8 @@ class RecvVideoJob(
 class DecodeVideoJob(
     val avChannel: AVChannel?,
     var isRunning: Boolean = false,
-    var iavChannelStatus: IAVChannelListener?
+    var iavChannelStatus: IAVChannelListener?,
+    var withYuv:Boolean = false
 ) {
 
     private var mContext: WeakReference<Context?>? = null
@@ -412,6 +414,8 @@ class DecodeVideoJob(
     private var mVideoDecoder: VideoDecoder? = null
     private var mVideoBuffer: ByteBuffer? = null
     private var mVideoOutBuffer: ByteBuffer? = null
+    private var mYuvData: ByteArray? = null
+    private var mArgbData:ByteArray? = null
 
     private fun isActive() = runJob?.isActive == true
 
@@ -559,6 +563,9 @@ class DecodeVideoJob(
                                                     ByteBuffer.allocateDirect(MAX_FRAMEBUF)
                                                 mVideoOutBuffer =
                                                     ByteBuffer.allocateDirect(MAX_FRAMEBUF)
+
+                                                mYuvData = ByteArray(MAX_FRAMEBUF)
+                                                mArgbData = ByteArray(MAX_FRAMEBUF)
                                                 decoderIsInit = true
                                             }
                                             mVideoBuffer?.clear()
@@ -567,18 +574,22 @@ class DecodeVideoJob(
                                             }
                                             mVideoBuffer?.flip()
                                             mVideoOutBuffer?.clear()
-                                            videoDecodeResult = mVideoDecoder?.decode(
-                                                mVideoBuffer,
-                                                avFrameSize,
-                                                10,
-                                                mVideoOutBuffer
-                                            ) ?: -1
-//                                            mVideoDecoder?.consumeNalUnitsFromDirectBuffer(
-//                                                mVideoBuffer,
-//                                                avFrameSize,
-//                                                10
-//                                            )
-
+                                            videoDecodeResult = if(withYuv){
+                                                mVideoDecoder?.decodeWithYUV(
+                                                    mVideoBuffer,
+                                                    avFrameSize,
+                                                    10,
+                                                    mVideoOutBuffer,
+                                                    mYuvData
+                                                )?:-1
+                                            }else{
+                                                mVideoDecoder?.decode(
+                                                    mVideoBuffer,
+                                                    avFrameSize,
+                                                    10,
+                                                    mVideoOutBuffer
+                                                ) ?: -1
+                                            }
 
 //                                            if (mVideoDecoder?.isFrameReady == true) {
                                             out_width[0] = mVideoDecoder?.width ?: 0
@@ -617,13 +628,20 @@ class DecodeVideoJob(
                                                 }
 
                                                 if (videoWidth > 0 && videoHeight > 0) {
-
                                                     bmp = Bitmap.createBitmap(
                                                         videoWidth,
                                                         videoHeight,
                                                         Bitmap.Config.ARGB_8888
                                                     )
-                                                    bmp?.copyPixelsFromBuffer(mVideoOutBuffer)
+                                                    if(withYuv){
+                                                        LibyuvUtils.I420ToRGBA(mYuvData,mArgbData,videoWidth,videoHeight)
+                                                        val wrap = ByteBuffer.wrap(mArgbData)
+                                                        wrap.rewind()
+                                                        wrap.position(0)
+                                                        bmp?.copyPixelsFromBuffer(wrap)
+                                                    }else{
+                                                        bmp?.copyPixelsFromBuffer(mVideoOutBuffer)
+                                                    }
                                                 }
 
                                                 if (firstTimeStampFromDevice != 0

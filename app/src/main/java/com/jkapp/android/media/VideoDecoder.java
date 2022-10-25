@@ -48,6 +48,7 @@ public class VideoDecoder {
 
     public native long decodeFrameToDirectBuffer(ByteBuffer buffer);
     public native int decode(ByteBuffer nalUnits, int numBytes, long packetPTS, ByteBuffer outBuffer);
+    public native int decodeWithYUV(ByteBuffer nalUnits, int numBytes, long packetPTS, ByteBuffer outBuffer,byte[] yuvBuffer);
 
     public native void releaseCache();
 //    //mutile coder
