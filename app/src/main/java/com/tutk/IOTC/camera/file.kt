@@ -955,7 +955,8 @@ internal class DownFileJob(
                                     break
                                 }
 
-                                try {
+
+                                kotlin.runCatching {
                                     this@DownFileJob.dstUri?.let { uri ->
                                         mContext?.get()?.contentResolver?.openOutputStream(uri)
                                             ?.use { fos ->
@@ -1022,11 +1023,15 @@ internal class DownFileJob(
                                                 }
                                             }
                                     }
-
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
+                                }.onFailure {
+                                    it.printStackTrace()
                                 }
-
+                                val stopArray = RDCTRLDEFs.parseContent(
+                                    RDCTRLDEFs.RDT_COMMAND_FILE_STOP,
+                                    "Stop".toByteArray()
+                                )
+                                d("send stop")
+                                RDTAPIs.RDT_Write(rdt_id, stopArray, STRUCT_SIZE)
                             } else {
                                 isRunning = false
                                 emit(
