@@ -18,10 +18,8 @@ import android.view.SurfaceView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
-import com.tutk.IOTC.AVIOCTRLDEFs
-import com.tutk.IOTC.AudioListener
+import com.tutk.IOTC.*
 import com.tutk.IOTC.Camera
-import com.tutk.IOTC.Liotc
 import com.tutk.IOTC.listener.*
 import com.tutk.IOTC.status.PlayMode
 import com.tutk.IOTC.status.PlaybackStatus
@@ -133,9 +131,12 @@ class PlaybackMonitor @JvmOverloads constructor(
     private var mAudioTrackStatus: Boolean = true
 
     private var mPlayTimeJob: Job? = null
+    private var mPlayTimeRunning = false
 
     /**是否使用libyuv解析图片*/
     var withYuv = false
+
+    private var mSeekTime = 0
 
     init {
         mSurHolder = holder
@@ -230,19 +231,32 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.registerFrameCallback(this)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
         renderJob()
-//        if (mAvChannel < 0) {
-//            mRecordEvent?.let {
-//                if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
-//                    mCamera.playback(type = PlaybackStatus.START, time = it)
-//                }
-//            }
-//        }
+        if (mAvChannel < 0) {
+            mRecordEvent?.let {
+                if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
+                    mCamera.playback(type = PlaybackStatus.START, time = it)
+                }
+            }
+        }
+    }
+
+
+    fun changePlayStatus() {
+        if (mAvChannel >= 0 && (mPlaybackStatus == PlaybackStatus.PLAYING || mPlaybackStatus == PlaybackStatus.PAUSE)) {
+            mRecordEvent?.let {
+                mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
+            }
+        } else if (mAvChannel < 0 && mPlaybackStatus == null) {
+            mRecordEvent?.let {
+                mCamera.playback(type = PlaybackStatus.START, time = it)
+            }
+        }
     }
 
     /**
-     * 暂停播放
+     * 暂停、开始播放
      */
-    fun pause() {
+    private fun pause() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PLAYING) {
             mRecordEvent?.let {
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
@@ -253,15 +267,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     /**
      * 暂停播放后回复播放
      */
-    fun resume() {
-        if (mAvChannel < 0) {
-            mRecordEvent?.let {
-                if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
-                    mCamera.playback(type = PlaybackStatus.START, time = it)
-                }
-            }
-            return
-        }
+    private fun resume() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PAUSE) {
             mRecordEvent?.let {
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
@@ -269,9 +275,12 @@ class PlaybackMonitor @JvmOverloads constructor(
         }
     }
 
-    fun seekTo(percent: Int) {
-        if (mAvChannel >= 0) {
+    fun seekTo(seekTime: Int) {
+        if (mAvChannel >= 0 && mVideoTotalTime > 0) {
             mRecordEvent?.let {
+                AVAPIs.avClientCleanAudioBuf(mAvChannel)
+                mSeekTime = seekTime
+                val percent = ((mSeekTime * 1.0 / mVideoTotalTime) * 100).toInt()
                 mCamera.playbackSeekToPercent(time = it, percent = percent)
             }
         }
@@ -281,7 +290,7 @@ class PlaybackMonitor @JvmOverloads constructor(
      * 停止播放
      * 释放播放资源
      */
-    fun stop() {
+    private fun stop() {
         if (mAvChannel >= 0 && mPlaybackStatus != PlaybackStatus.STOP) {
             releaseAudio()
             mRecordEvent?.let {
@@ -293,16 +302,26 @@ class PlaybackMonitor @JvmOverloads constructor(
 //            setAudioTrackStatus(false)
             stopShow()
             mCamera?.stop(mAvChannel)
+
+            //释放音频资源
+            releaseAudio()
+
+            stopPlayTime()
+            mAvChannel = -1
+//            mOnPlaybackCallback = null
         }
     }
 
     private fun startPlayTime() {
+
         mPlayTimeJob?.cancel()
         mPlayTimeJob = null
+        mPlayTimeRunning = true
+
 
         mPlayTimeJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-                while (mPlayTimeJob?.isActive == true) {
+                while (mPlayTimeRunning) {
                     emit(1)
                     delay(1000)
                 }
@@ -321,6 +340,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     private fun stopPlayTime() {
+        mPlayTimeRunning = false
         mPlayTimeJob?.cancel()
         mPlayTimeJob = null
     }
@@ -348,7 +368,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         mCamera?.start(mAvChannel, mCamera?.viewAccount ?: "admin", mCamera?.psw ?: "")
         mCamera.getAudioCodec(mAvChannel)
-        mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
+        mCamera?.startShow(context, mAvChannel, withYuv = withYuv)
         setAudioTrackStatus(mAudioTrackStatus)
 
     }
@@ -360,14 +380,14 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     fun setAudioTrackStatus(status: Boolean) {
         mAudioTrackStatus = status
-        Liotc.d("RecvAudioJob","motion setAudioListener=$status")
+        Liotc.d("RecvAudioJob", "motion setAudioListener=$status")
         setAudioListener(if (mAudioTrackStatus) AudioListener.UNMUTE else AudioListener.MUTE)
     }
 
     /**监听*/
     private fun setAudioListener(audioListener: AudioListener) {
         if (mAvChannel >= 0) {
-            Liotc.d("RecvAudioJob","motion setAudioListener=$audioListener")
+            Liotc.d("RecvAudioJob", "motion setAudioListener=$audioListener")
             mCamera?.setAudioTrackStatus(context, mAvChannel, audioListener == AudioListener.UNMUTE)
         }
     }
@@ -457,11 +477,21 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
-    fun onStop() {
+    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    fun onResume() {
+        resume()
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+    fun onPause() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PLAYING) {
             pause()
         }
+    }
+
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    fun onStop() {
         if (isRecording) {
             stopRecord()
         }
@@ -472,12 +502,9 @@ class PlaybackMonitor @JvmOverloads constructor(
         Liotc.d("Monitor", "onDestroy")
 
         stop()
-        //释放音频资源
-        releaseAudio()
-        unAttachCamera()
-        unRegisterAVChannelRecordStatus()
-        stopPlayTime()
         mOnPlaybackCallback = null
+        unRegisterAVChannelRecordStatus()
+        unAttachCamera()
     }
 
 
@@ -886,7 +913,10 @@ class PlaybackMonitor @JvmOverloads constructor(
 
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP -> {
                 val playback = data.parsePlayBack()
-                Liotc.d("RecvAudioJob","--------IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP type=${playback?.type}")
+                Liotc.d(
+                    "RecvAudioJob",
+                    "--------IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP type=${playback?.type},${mOnPlaybackCallback == null},channel=${playback?.channel}"
+                )
                 when (playback?.type) {
                     PlaybackStatus.START -> {
                         mVideoTotalTime = playback.time / 1000
@@ -938,6 +968,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                             mVideoTotalTime,
                             mVideoPlayTime
                         )
+                        mPlaybackStatus = null
                     }
                     PlaybackStatus.END -> {
                         mPlaybackStatus = PlaybackStatus.END
@@ -948,6 +979,9 @@ class PlaybackMonitor @JvmOverloads constructor(
                         )
                         stopPlayTime()
                         stop()
+                    }
+                    PlaybackStatus.SEEKTIME -> {
+                        mVideoPlayTime = mSeekTime
                     }
                 }
             }

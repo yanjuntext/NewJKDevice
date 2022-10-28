@@ -571,7 +571,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
             if (isRecording) {
                 stopRecord()
             }
-            setAudioTrackStatus(false)
+//            setAudioTrackStatus(false)
             stopShow()
             releaseAudio()
             mCamera?.stop(mAvChannel)
@@ -871,6 +871,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
         when (avIOCtrlMsgType) {
 
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP -> {
+
                 val playback = data.parsePlayBack()
                 when (playback?.type) {
                     PlaybackStatus.START -> {
