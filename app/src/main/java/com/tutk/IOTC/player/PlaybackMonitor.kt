@@ -230,13 +230,13 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.registerFrameCallback(this)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
         renderJob()
-        if (mAvChannel < 0) {
-            mRecordEvent?.let {
-                if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
-                    mCamera.playback(type = PlaybackStatus.START, time = it)
-                }
-            }
-        }
+//        if (mAvChannel < 0) {
+//            mRecordEvent?.let {
+//                if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
+//                    mCamera.playback(type = PlaybackStatus.START, time = it)
+//                }
+//            }
+//        }
     }
 
     /**
@@ -283,15 +283,15 @@ class PlaybackMonitor @JvmOverloads constructor(
      */
     fun stop() {
         if (mAvChannel >= 0 && mPlaybackStatus != PlaybackStatus.STOP) {
+            releaseAudio()
             mRecordEvent?.let {
                 mCamera.playback(type = PlaybackStatus.STOP, time = it)
             }
             if (isRecording) {
                 stopRecord()
             }
-            setAudioTrackStatus(false)
+//            setAudioTrackStatus(false)
             stopShow()
-            releaseAudio()
             mCamera?.stop(mAvChannel)
         }
     }
@@ -360,12 +360,14 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     fun setAudioTrackStatus(status: Boolean) {
         mAudioTrackStatus = status
+        Liotc.d("RecvAudioJob","motion setAudioListener=$status")
         setAudioListener(if (mAudioTrackStatus) AudioListener.UNMUTE else AudioListener.MUTE)
     }
 
     /**监听*/
     private fun setAudioListener(audioListener: AudioListener) {
         if (mAvChannel >= 0) {
+            Liotc.d("RecvAudioJob","motion setAudioListener=$audioListener")
             mCamera?.setAudioTrackStatus(context, mAvChannel, audioListener == AudioListener.UNMUTE)
         }
     }
@@ -884,6 +886,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP -> {
                 val playback = data.parsePlayBack()
+                Liotc.d("RecvAudioJob","--------IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP type=${playback?.type}")
                 when (playback?.type) {
                     PlaybackStatus.START -> {
                         mVideoTotalTime = playback.time / 1000

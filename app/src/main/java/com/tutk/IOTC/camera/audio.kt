@@ -67,7 +67,7 @@ class RecvAudioJob(
             d("RecvAudioJob is Running,not rerun")
             return
         }
-        d("start  1")
+        d("start  1 index=${avChannel?.mAvIndex}")
         if (isTwoWayVoiceType()) {
             AudioTrackHelper.unInitAudioTrack()
         } else {
@@ -144,7 +144,7 @@ class RecvAudioJob(
                                         bytAvFrame,
                                         frameData,
                                         nReadSize,
-                                        Camera.AUDIORECORD_LIVEMODE
+                                        mPlayMode
                                     )
                                     mCodecId = frame.codec_id.toInt()
 
@@ -376,7 +376,7 @@ class RecvAudioJob(
                     )
                     d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
                 }
-                d("stop 2")
+                d("stop 2 ")
                 //关闭双向语音
                 avChannel?.mAudioPlayer?.soundOff()
                 //释放双向语音资源
@@ -386,10 +386,10 @@ class RecvAudioJob(
                 //释放单向语音播放资源
                 AudioTrackHelper.unInitAudioTrack()
 
-                d("stop 4")
+                d("stop 4 ${avChannel?.mChannel}")
                 //释放解码器
                 AudioProcessHelper.unDecode()
-                d("stop 5")
+                d("stop 5 ${avChannel?.mChannel}")
                 isRunning = false
             }.flowOn(Dispatchers.IO)
                 .collect {
@@ -876,6 +876,7 @@ internal object AudioTrackHelper {
 
     //非双向语音的音频录制
     private var mAudioRecord: AudioRecord? = null
+
 
     fun initAudioTrack(sampleRateHz: Int, channel: Int, databits: Int, codec_id: Int): Boolean {
         Liotc.d("RecvAudioJob", "initAudioTrack")
