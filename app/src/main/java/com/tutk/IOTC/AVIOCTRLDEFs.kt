@@ -811,7 +811,7 @@ object AVIOCTRLDEFs {
 
     private fun parseTime(timeInMillis: Long): ByteArray {
         val data = 8.byteArray()
-        val calendar = Calendar.getInstance()
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("gmt"))
         calendar.timeInMillis = timeInMillis
 
         val year = calendar.get(Calendar.YEAR)
