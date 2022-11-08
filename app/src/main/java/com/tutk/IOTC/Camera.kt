@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock
 /**
  * @Author: wangyj
  * @CreateDate: 2021/9/8
- * @Description:
+ * @Description:==
  */
 const val IOTC_CONNECT_ING = 9999
 
@@ -560,6 +560,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             }
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_DOWNLOAD_FILE_RESP -> {
                 //下载文件
+                Liotc.d(
+                    "downFile",
+                    "mAvDownloadFileChannel=$mAvDownloadFileChannel,channel=$channel"
+                )
                 if (mAvDownloadFileChannel == channel) {
                     startDownloadFile()
                 }
@@ -1031,7 +1035,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val channel = iterator.next()
-            if (channel.mAvIndex == mAvSendFileChannel) {
+            if (channel.mChannel == mAvSendFileChannel) {
                 if (!mSendFile.isNullOrEmpty()) {
                     d(TAG, "开始发送音频文件 channel[$mAVChannels],file[$mSendFile]")
                     channel.startSendFile(mSendFileContext?.get(), mSendFile)
@@ -1049,7 +1053,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val channel = iterator.next()
-            if (channel.mAvIndex == channelIndex) {
+            if (channel.mChannel == channelIndex) {
                 channel.releaseSendFile()
                 mSendFileContext = null
                 mSendFile = null
@@ -1073,7 +1077,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         mDownloadDstFile = dstFile
         mDownloadFileContext = WeakReference(context)
         mDownloadSrcFile = srcFile
-        mAvDownloadFileChannel = channelIndex
+//        mAvDownloadFileChannel = channelIndex
         mDownloadDstUri = null
         sendDownloadFileOrder(channelIndex)
     }
@@ -1101,8 +1105,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val channel = iterator.next()
-            if (channel.mAvIndex == mAvDownloadFileChannel) {
+            Liotc.d(
+                "downFile",
+                "mAvDownloadFileChannel=$mAvDownloadFileChannel,channelIndex=$${channel.mAvIndex},channel=${channel.mChannel}"
+            )
+
+            if (channel.mChannel == mAvDownloadFileChannel) {
                 if (!mDownloadDstFile.isNullOrEmpty()) {
+                    Liotc.d("downFile", "111")
                     d(
                         TAG,
                         "开始下载文件 channel[$mAVChannels],src[${mDownloadSrcFile}],dst[$mDownloadDstFile]"
@@ -1113,6 +1123,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                         TAG,
                         "开始下载文件 channel[$mAVChannels],src[${mDownloadSrcFile}],uri[$mDownloadDstUri]"
                     )
+                    Liotc.d("downFile", "2222")
                     channel.startDownloadFile(
                         mDownloadFileContext?.get(),
                         mDownloadSrcFile,
@@ -1128,7 +1139,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val channel = iterator.next()
-            if (channel.mAvIndex == channelIndex) {
+            if (channel.mChannel == channelIndex) {
                 channel.releaseDownloadFile()
                 mDownloadFileContext = null
                 mDownloadSrcFile = null

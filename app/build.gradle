@@ -49,7 +49,7 @@ android {
 
     afterEvaluate {
         publishing {
-            def versionName = "2.0.12" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+            def versionName = "2.0.13" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
             publications {
                 // Creates a Maven publication called "release".
                 release(MavenPublication) {

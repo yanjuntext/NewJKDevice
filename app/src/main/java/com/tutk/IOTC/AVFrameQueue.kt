@@ -26,11 +26,17 @@ class AVFrameQueue {
             lock.unlock()
             null
         } else {
+            if(listData.isEmpty()){
+                mSize = 0
+                lock.unlock()
+                null
+            }else{
+                val avFrame = listData.removeAt(0)
+                mSize--
+                lock.unlock()
+                avFrame
+            }
 
-            val avFrame = listData.removeAt(0)
-            mSize--
-            lock.unlock()
-            avFrame
         }
     }
 

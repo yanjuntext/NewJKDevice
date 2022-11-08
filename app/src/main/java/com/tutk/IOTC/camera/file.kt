@@ -1177,7 +1177,9 @@ fun String?.nonValidXMLCharacters(): String {
     val sb = StringBuilder()
     this.forEach { current ->
         // here; it should not happen.
-        if (current.toInt() == 0x9 || current.toInt() == 0xA || current.toInt() == 0xD
+        if (current.toInt() == 0x9
+            || current.toInt() == 0xA
+            || current.toInt() == 0xD
             || current.toInt() in 0x20..0xD7FF
             || current.toInt() in 0xE000..0xFFFD
             || current.toInt() in 0x10000..0x10FFFF

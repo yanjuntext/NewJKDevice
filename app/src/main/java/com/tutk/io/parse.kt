@@ -606,7 +606,7 @@ fun ByteArray?.parseEventReport(): TEventReport? {
         val _devName = ByteArray(16)
         System.arraycopy(this, 36, _devName, 0, 16)
         val _picName = ByteArray(32)
-        System.arraycopy(this, 50, _picName, 0, 32)
+        System.arraycopy(this, 52, _picName, 0, 32)
 
         val feedType = this[84].toInt()
 
