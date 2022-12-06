@@ -59,7 +59,7 @@
   #保持该类下所有的共有内容不被混淆
    public *;
 }
--keepclassmembers class com.tutk.IOTC.audio.RecvAudioJob{
+-keepclassmembers class com.tutk.IOTC.camera.RecvAudioJob{
     #保持该类下所有的共有内容不被混淆
     public *;
 }

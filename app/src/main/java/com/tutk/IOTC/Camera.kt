@@ -468,6 +468,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         Liotc.d("disconnect", "disconnect size[${mAVChannels.size}]")
         while (iterator.hasNext()) {
             val next = iterator.next()
+            d("RecvAudioJob", "unInitAudioTrack releaseAudio stop disconnect")
             next.stop()
             if (next.mAvIndex >= 0) {
                 AVAPIs.avClientStop(next.mAvIndex)
@@ -849,6 +850,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     fun stop(avChannel: Int) {
+        d("RecvAudioJob", "unInitAudioTrack releaseAudio stop stop")
         val iterator = mAVChannels.iterator()
         var channel: AVChannel? = null
         while (iterator.hasNext()) {

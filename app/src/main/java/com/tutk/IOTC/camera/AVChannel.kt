@@ -11,11 +11,10 @@ import androidx.core.content.ContextCompat
 import com.ingenic.api.AudioFrame
 import com.ingenic.api.Frequency
 import com.tutk.IOTC.*
-import com.tutk.IOTC.audio.RecvAudioJob
-import com.tutk.IOTC.audio.SendAudioJob
 import com.tutk.IOTC.status.PlayMode
 import com.tutk.IOTC.status.RecordStatus
 import com.tutk.IOTC.status.VoiceType
+import com.tutk.libSLC.AcousticEchoCanceler
 import com.tutk.webtrc.MyAudioPlayer
 import kotlinx.coroutines.*
 
@@ -98,6 +97,8 @@ class AVChannel(
     //语音类型
     internal var mVoiceType = VoiceType.ONE_WAY_VOICE
 
+    private var mAcousticEchoCanceler: AcousticEchoCanceler? = null
+
     internal fun setSid(sid: Int) {
         SID = sid
         mStartJob?.setSid(sid)
@@ -142,7 +143,7 @@ class AVChannel(
         mRecvIoJob?.stop()
         mSendIoJob?.stop()
         mStartJob?.stop()
-
+        d("RecvAudioJob", "unInitAudioTrack releaseAudio stop")
         //释放音频
         releaseAudio()
         //释放视频
@@ -193,6 +194,7 @@ class AVChannel(
         if (mAudioPlayer != null) {
             return true
         }
+        d("zrtAudioPlayer", "initAudioPlayer")
         mAudioFrame = AudioFrame()
 //        mAudioPlayer = AudioPlayer.getInstance().init(context, null, Frequency.PCM_8K)
         mAudioPlayer = MyAudioPlayer.getInstance().init(context, null, Frequency.PCM_8K)
@@ -219,6 +221,8 @@ class AVChannel(
         mAudioPlayer = null
 
         mAudioFrame = null
+
+//        releaseAcousticEchoCanceler()
     }
 
     internal fun audioPlayerIsEmpty() = mAudioPlayer == null
@@ -251,6 +255,7 @@ class AVChannel(
         status: Boolean,
         recording: Boolean = false
     ) {
+        d("RecvAudioJob", "unInitAudioTrack setAudioTrackStatus=$status")
         audioPlayStatus = status
         if (mRecvAudioJob == null) {
             mRecvAudioJob = RecvAudioJob(this, iavChannelStatus = iavChannelStatus)
@@ -290,6 +295,7 @@ class AVChannel(
 
     //释放音频资源
     internal fun releaseAudio() {
+        d("RecvAudioJob", "unInitAudioTrack releaseAudio")
         audioPlayStatus = false
         audioRecordStatus = false
 
@@ -300,6 +306,8 @@ class AVChannel(
         mSendAudioJob = null
 
         unInitAudioPlayer()
+
+        releaseAcousticEchoCanceler()
     }
 
     //发送文件
@@ -340,6 +348,38 @@ class AVChannel(
         mDownloadFileJob?.stop()
     }
 
+    @Synchronized
+    internal fun initAcousticEchoCanceler(): Boolean {
+        if (mAcousticEchoCanceler == null) {
+            d("AcousticEchoCanceler","initAcousticEchoCanceler")
+            mAcousticEchoCanceler = AcousticEchoCanceler()
+            mAcousticEchoCanceler?.Open(8000, 16)
+        }
+        return true
+    }
+
+    internal fun captureAcousticEchoCanceler(data: ByteArray, length: Int) {
+        if(mAcousticEchoCanceler != null){
+            d("AcousticEchoCanceler","captureAcousticEchoCanceler")
+        }
+        mAcousticEchoCanceler?.Capture(data, length)
+    }
+
+    internal fun playAcousticEchoCanceler(data: ByteArray, length: Int) {
+        if(mAcousticEchoCanceler != null){
+            d("AcousticEchoCanceler","playAcousticEchoCanceler")
+        }
+        mAcousticEchoCanceler?.Play(data, length)
+    }
+
+    internal fun releaseAcousticEchoCanceler() {
+        if(mAcousticEchoCanceler != null){
+            d("AcousticEchoCanceler","releaseAcousticEchoCanceler")
+        }
+        mAcousticEchoCanceler?.close()
+        mAcousticEchoCanceler = null
+    }
+
     fun supportAudioIn() = (mServiceType and 1L) == 0L
     fun supportAudioOut() = (mServiceType and 2L) == 0L
     fun supportPanTilt() = (mServiceType and 4L) == 0L
@@ -374,6 +414,8 @@ class AVChannel(
     private fun e(tag: String, msg: String) {
         Liotc.e(tag, msg)
     }
+
+
 }
 
 interface IAVChannelListener {

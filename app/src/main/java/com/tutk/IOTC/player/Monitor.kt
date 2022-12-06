@@ -1,4 +1,4 @@
-package com.tutk.IOTC
+package com.tutk.IOTC.player
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -18,6 +18,9 @@ import android.view.SurfaceView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
+import com.tutk.IOTC.AVIOCTRLDEFs
+import com.tutk.IOTC.Camera
+import com.tutk.IOTC.Liotc
 import com.tutk.IOTC.camera.VideoQuality
 import com.tutk.IOTC.listener.*
 import com.tutk.IOTC.status.PlayMode
@@ -118,8 +121,11 @@ class Monitor @JvmOverloads constructor(
     /**宽高比例*/
     private var widthRation = 16
     private var heightRation = 9
+
     /**是否使用libyuv解析图片*/
     var withYuv = false
+
+    private var canDraw = false
 
     init {
         mSurHolder = holder
@@ -334,7 +340,7 @@ class Monitor @JvmOverloads constructor(
             mAvChannel,
             file,
             if (mBitmapWidth <= 1280) 1280 else mBitmapWidth,
-            if(mBitmapHeight <= 720) 720 else mBitmapHeight
+            if (mBitmapHeight <= 720) 720 else mBitmapHeight
         ) { result ->
             isRecording = result == RecordStatus.RECORDING
             callback?.onResult(result)
@@ -388,6 +394,9 @@ class Monitor @JvmOverloads constructor(
                     "Monitor",
                     "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
                 )
+                if (!canDraw) {
+                    continue
+                }
                 if (mLastFrame != null && mLastFrame?.isRecycled == false) {
                     try {
                         videoCanvas = mSurHolder?.lockCanvas()
@@ -672,6 +681,7 @@ class Monitor @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        canDraw = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -705,9 +715,11 @@ class Monitor @JvmOverloads constructor(
             Liotc.d("Monitor", "_setFullScreen surfaceChanged[$isFullScreen]")
 
         }
+        canDraw = true
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        canDraw = false
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?) {
@@ -802,7 +814,7 @@ class Monitor @JvmOverloads constructor(
         when (avIOCtrlMsgType) {
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETAUDIOOUTFORMAT_RESP -> {
                 Liotc.d("Monitor", " Audio Codec resp ")
-                mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
+                mCamera?.startShow(context, mAvChannel, withYuv = withYuv)
 //                renderJob()
             }
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP -> {
@@ -822,7 +834,7 @@ class Monitor @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
-                            VideoQuality.SSD.value->{
+                            VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
@@ -851,7 +863,7 @@ class Monitor @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
-                            VideoQuality.SSD.value->{
+                            VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }

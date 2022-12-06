@@ -138,6 +138,8 @@ class MonitorVer @JvmOverloads constructor(
     /**是否使用libyuv解析图片*/
     var withYuv = false
 
+    private var canDraw = false
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -302,8 +304,10 @@ class MonitorVer @JvmOverloads constructor(
      *音频类型
      * */
     fun setVoiceType(voiceType: VoiceType) {
+        Liotc.d("Monitor", "unInitAudioTrack  setVoiceType=$voiceType")
         mVoiceType = voiceType
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
+        Liotc.d("Monitor", "unInitAudioTrack  setVoiceType=$mVoiceType")
     }
 
     /**播放视频*/
@@ -325,6 +329,7 @@ class MonitorVer @JvmOverloads constructor(
 
     /**监听*/
     fun setAudioListener(audioListener: AudioListener) {
+        Liotc.d("Monitor", "unInitAudioTrack setAudioListener ${audioListener == AudioListener.UNMUTE}     type=$mVoiceType")
         if (mVoiceType == VoiceType.ONE_WAY_VOICE && audioListener == AudioListener.UNMUTE) {
             //如果是单向语音，开启了监听，必须要关闭通话
             setAudioTalker(AudioTalker.UNTALK)
@@ -334,8 +339,10 @@ class MonitorVer @JvmOverloads constructor(
 
     /**通话*/
     fun setAudioTalker(audioTalker: AudioTalker) {
+        Liotc.d("Monitor", "unInitAudioTrack setAudioTalker $audioTalker  type=$mVoiceType")
         if (mVoiceType == VoiceType.ONE_WAY_VOICE && audioTalker == AudioTalker.TALK) {
             //如果是单向语音，开启了通话，必须要关闭监听
+            Liotc.d("Monitor", "unInitAudioTrack setAudioTalker $audioTalker  type=$mVoiceType   1`1111")
             setAudioListener(AudioListener.MUTE)
         }
         mCamera?.setAudioRecordStatus(context, mAvChannel, audioTalker == AudioTalker.TALK)
@@ -414,6 +421,7 @@ class MonitorVer @JvmOverloads constructor(
                     "Monitor",
                     "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
                 )
+                if(!canDraw) continue
                 if (mLastFrame != null && mLastFrame?.isRecycled == false) {
                     try {
                         videoCanvas = mSurHolder?.lockCanvas()
@@ -464,6 +472,7 @@ class MonitorVer @JvmOverloads constructor(
     fun onStop() {
         Liotc.d("Monitor", "onStop")
         stopShow()
+        Liotc.d("RecvAudioJob", "Monitor unInitAudioTrack releaseAudio stop")
         //释放音频资源
         releaseAudio()
         if (isRecording) {
@@ -716,6 +725,7 @@ class MonitorVer @JvmOverloads constructor(
             "Monitor",
             "surfaceCreated [screen"
         )
+        canDraw = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -768,9 +778,11 @@ class MonitorVer @JvmOverloads constructor(
             Liotc.d("Monitor", "_setFullScreen surfaceChanged[$isFullScreen]")
 
         }
+        canDraw = true
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        canDraw = false
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?) {

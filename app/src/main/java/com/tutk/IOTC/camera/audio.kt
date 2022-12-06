@@ -1,15 +1,14 @@
-package com.tutk.IOTC.audio
+package com.tutk.IOTC.camera
 
 import android.content.Context
 import android.media.*
 import android.util.Log
 import androidx.annotation.RequiresPermission
-import com.decoder.util.PCMA
+import com.decoder.util.G711Code
 import com.tutk.IOTC.*
 import com.tutk.IOTC.camera.*
 import com.tutk.IOTC.status.VoiceType
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.lang.ref.WeakReference
@@ -68,10 +67,13 @@ class RecvAudioJob(
             return
         }
         d("start  1 index=${avChannel?.mAvIndex}")
-        if (isTwoWayVoiceType()) {
+        if (isTwoWayVoiceType() && avChannel?.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+            //只有君正的才需要关闭通话
+            d("unInitAudioTrack  111")
             AudioTrackHelper.unInitAudioTrack()
         } else {
             avChannel?.unInitAudioPlayer()
+            avChannel?.releaseAcousticEchoCanceler()
         }
         d("start  2")
         var nReadSize = 0
@@ -81,7 +83,8 @@ class RecvAudioJob(
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow<Int> {
                 while (isRunning && isActive() && ((avChannel?.SID
-                        ?: -1) < 0 || (avChannel?.mAvIndex ?: -1) < 0 || avChannel?.SID == IOTC_CONNECT_ING)
+                        ?: -1) < 0 || (avChannel?.mAvIndex
+                        ?: -1) < 0 || avChannel?.SID == IOTC_CONNECT_ING)
                 ) {
                     delay(100)
                 }
@@ -150,13 +153,14 @@ class RecvAudioJob(
 
                                     d("nCodecId[$mCodecId]")
 
-                                    if (isTwoWayVoiceType() && mPlayMode != Camera.AUDIORECORD_PLAYBACKMODE) {
-                                        mCodecId = AVFrame.MEDIA_CODEC_AUDIO_PCM
-                                    }
+//                                    if (isTwoWayVoiceType() && mPlayMode != Camera.AUDIORECORD_PLAYBACKMODE) {
+//                                        mCodecId = AVFrame.MEDIA_CODEC_AUDIO_PCM
+//                                    }
 
                                     if (mLastVoiceType != avChannel?.mVoiceType
-                                        || (avChannel?.mVoiceType == VoiceType.ONE_WAY_VOICE && AudioTrackHelper.audioTrackIsEmpty() && avChannel.audioPlayStatus)
-                                        || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.audioPlayerIsEmpty() && avChannel.audioPlayStatus)) {
+                                        || ((avChannel?.mVoiceType == VoiceType.ONE_WAY_VOICE || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && mCodecId != AVFrame.MEDIA_CODEC_AUDIO_PCM)) && AudioTrackHelper.audioTrackIsEmpty() && avChannel.audioPlayStatus)
+                                        || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM && avChannel.audioPlayerIsEmpty() && avChannel.audioPlayStatus)
+                                    ) {
                                         mFirst = true
                                         mInitAudio = false
                                         d("chang voiceType 1")
@@ -164,6 +168,7 @@ class RecvAudioJob(
                                         avChannel?.unInitAudioPlayer()
                                         d("chang voiceType 2")
                                         //释放当向语音播放资源
+                                        d("unInitAudioTrack  222")
                                         AudioTrackHelper.unInitAudioTrack()
                                         d("chang voiceType 3")
                                         mLastVoiceType = avChannel?.mVoiceType
@@ -217,8 +222,22 @@ class RecvAudioJob(
                                                 )
                                             } else {
                                                 d("first initAudioPlayer")
-                                                avChannel?.initAudioPlayer(mContext?.get()) ?: false
+                                                if (mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+                                                    avChannel?.initAudioPlayer(mContext?.get())
+                                                        ?: false
+                                                } else {
+                                                    val flag = avChannel?.initAcousticEchoCanceler()
+                                                        ?: false
+                                                    AudioTrackHelper.initAudioTrack(
+                                                        mSamplerate,
+                                                        mChannel,
+                                                        mDatabits,
+                                                        mCodecId
+                                                    )
+                                                    flag
+                                                }
                                             }
+                                            d("first initAudioPlayer result=$initAudioTrack")
                                             if (!initAudioTrack) {
                                                 break
                                             }
@@ -228,15 +247,19 @@ class RecvAudioJob(
                                         }
                                     }
                                     if (isTwoWayVoiceType()) {
-                                        if (avChannel?.audioPlayStatus == true) {
-                                            if (avChannel.mAudioPlayer?.isSoundOn != true) {
-                                                avChannel.mAudioPlayer?.soundOn()
-                                            }
-                                        } else {
-                                            if (avChannel?.mAudioPlayer?.isSoundOn == true) {
-                                                avChannel.mAudioPlayer?.soundOff()
+                                        if (mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+                                            //PCM 双向语音使用的是君正
+                                            if (avChannel?.audioPlayStatus == true) {
+                                                if (avChannel.mAudioPlayer?.isSoundOn != true) {
+                                                    avChannel.mAudioPlayer?.soundOn()
+                                                }
+                                            } else {
+                                                if (avChannel?.mAudioPlayer?.isSoundOn == true) {
+                                                    avChannel.mAudioPlayer?.soundOff()
+                                                }
                                             }
                                         }
+
                                     }
                                     when (mCodecId) {
                                         AVFrame.MEDIA_CODEC_AUDIO_PCM -> {
@@ -294,18 +317,16 @@ class RecvAudioJob(
                                                     }
                                                     if (avChannel?.audioPlayStatus == true) {
                                                         if (isTwoWayVoiceType()) {
-                                                            avChannel.putPlayData(
+                                                            avChannel.captureAcousticEchoCanceler(
                                                                 decodeOutPutBuffer,
-                                                                decode,
-                                                                frame.timestamp.toLong()
-                                                            )
-                                                        } else {
-                                                            AudioTrackHelper.playAudio(
-                                                                decodeOutPutBuffer,
-                                                                0,
                                                                 decode
                                                             )
                                                         }
+                                                        AudioTrackHelper.playAudio(
+                                                            decodeOutPutBuffer,
+                                                            0,
+                                                            decode
+                                                        )
                                                     }
                                                 }
 
@@ -333,18 +354,18 @@ class RecvAudioJob(
                                                     }
                                                     if (avChannel?.audioPlayStatus == true) {
                                                         if (isTwoWayVoiceType()) {
-                                                            avChannel.putPlayData(
+                                                            avChannel.captureAcousticEchoCanceler(
                                                                 decodeOutPutBuffer,
-                                                                decode,
-                                                                frame.timestamp.toLong()
-                                                            )
-                                                        } else {
-                                                            AudioTrackHelper.playAudio(
-                                                                decodeOutPutBuffer,
-                                                                0,
                                                                 decode
                                                             )
+
                                                         }
+                                                        AudioTrackHelper.playAudio(
+                                                            decodeOutPutBuffer,
+                                                            0,
+                                                            decode
+                                                        )
+
                                                     }
                                                 }
                                             }
@@ -384,6 +405,7 @@ class RecvAudioJob(
 
                 d("stop 3")
                 //释放单向语音播放资源
+                d("unInitAudioTrack  333  $isRunning,${isActive()},${(avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)},${LocalRecordHelper.recording},${avChannel?.audioPlayStatus == true}")
                 AudioTrackHelper.unInitAudioTrack()
 
                 d("stop 4 ${avChannel?.mChannel}")
@@ -482,10 +504,12 @@ class SendAudioJob(
         runJob = null
         isRunning = true
 
-        if (isTwoWayVoiceType()) {
+        if (isTwoWayVoiceType() && avChannel?.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+            d("unInitAudioTrack  444")
             AudioTrackHelper.unInitAudioTrack()
         } else {
             avChannel?.unInitAudioPlayer()
+            avChannel?.releaseAcousticEchoCanceler()
         }
         val sid = avChannel?.SID ?: -1
         if (sid < 0) {
@@ -581,6 +605,7 @@ class SendAudioJob(
 
                     val pcmBuf = ByteArray(800)
                     val inG711Buf = ShortArray(320)
+                    val inG711BufByte = ByteArray(640)
 
                     val outG711Buf = ByteArray(2048)
 
@@ -591,17 +616,20 @@ class SendAudioJob(
 
                         while (avChannel?.audioRecordStatus == true && isActive()) {
                             //切换了语音类型 例如：单向语音变双向语音 或者 双向语音变单向语音
-                            if (mLastVoiceType != avChannel?.mVoiceType) {
+                            if (mLastVoiceType != avChannel?.mVoiceType && mLastVoiceType != null) {
                                 //释放双向语音资源
                                 avChannel?.unInitAudioPlayer()
-
+                                d("unInitAudioTrack  000")
                                 //释放当向语音播放资源
                                 AudioTrackHelper.unInitAudioTrack()
                                 AudioTrackHelper.unInitAudioRecord()
                                 mLastVoiceType = avChannel?.mVoiceType
                             }
+                            if(mLastVoiceType == null){
+                                mLastVoiceType = avChannel?.mVoiceType
+                            }
 
-                            if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE) {
+                            if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
                                 avChannel.initAudioPlayer(mContext?.get())
 //                                d("TWO_WAY_VOICE isAudioRecord[${avChannel.mAudioPlayer?.isAudioRecord}],codec[${avChannel.mAudioCodec}]")
 
@@ -660,30 +688,34 @@ class SendAudioJob(
                                         }
                                     }
                                 }
-                            } else if (avChannel.mVoiceType == VoiceType.ONE_WAY_VOICE) {
+                            } else if (avChannel.mVoiceType == VoiceType.ONE_WAY_VOICE
+                                || (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec != AVFrame.MEDIA_CODEC_AUDIO_PCM)
+                            ) {
+
+                                if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE) {
+                                    avChannel.initAcousticEchoCanceler()
+                                }
+
                                 //单向语音
                                 AudioTrackHelper.initAudioRecord()
+
                                 //开启录音
                                 AudioTrackHelper.resumeAudioRecord()
                                 d("ONE_WAY_VOICE [${avChannel.mAudioCodec}]")
                                 when (avChannel.mAudioCodec) {
                                     AVFrame.MEDIA_CODEC_AUDIO_G711A -> {
-                                        val size = AudioTrackHelper.readShortAudioRecord(inG711Buf)
+                                        var size = AudioTrackHelper.readAudioRecord(inG711BufByte)
+                                        if (isTwoWayVoiceType()) {
+                                            avChannel.playAcousticEchoCanceler(inG711BufByte, size)
+                                        }
+                                        size = G711Code.encode(inG711BufByte, 0, size, outG711Buf)
                                         d("readShortAudioRecord size[$size]")
                                         if (size > 0) {
-                                            PCMA.linear2alaw(inG711Buf, 0, outG711Buf, size)
                                             val frameInfo = getAudioInfo(
                                                 AVFrame.MEDIA_CODEC_AUDIO_G711A.toShort(),
                                                 flag.toByte()
                                             )
 
-//                                                AVIOCTRLDEFs.SFrameInfo.parseContent(
-//                                                AVFrame.MEDIA_CODEC_AUDIO_G711A.toShort(),
-//                                                flag.toByte(),
-//                                                0,
-//                                                0,
-//                                                System.currentTimeMillis().toInt()
-//                                            )
                                             AVAPIs.avSendAudioData(
                                                 mSendAudioChannelIndex,
                                                 outG711Buf,
@@ -695,6 +727,9 @@ class SendAudioJob(
                                     }
                                     else -> {
                                         val size = AudioTrackHelper.readAudioRecord(pcmBuf)
+                                        if (isTwoWayVoiceType()) {
+                                            avChannel.playAcousticEchoCanceler(inG711BufByte, size)
+                                        }
                                         d("readShortAudioRecord size[$size] ---")
                                         if (size > 0) {
                                             val frameInfo = getAudioInfo(
@@ -720,7 +755,7 @@ class SendAudioJob(
                             }
                         }
 
-                        if (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE) {
+                        if (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
                             //双向语音
                             if (avChannel.mAudioPlayer?.isAudioRecord == true) {
                                 avChannel.mAudioPlayer?.pauseAudioRecord()

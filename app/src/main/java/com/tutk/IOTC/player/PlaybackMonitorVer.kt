@@ -19,7 +19,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import com.tutk.IOTC.AVIOCTRLDEFs
-import com.tutk.IOTC.AudioListener
 import com.tutk.IOTC.Camera
 import com.tutk.IOTC.Liotc
 import com.tutk.IOTC.listener.*
