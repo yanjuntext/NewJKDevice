@@ -411,7 +411,9 @@ class Monitor @JvmOverloads constructor(
                         e.printStackTrace()
                     } finally {
                         videoCanvas?.let {
-                            mSurHolder?.unlockCanvasAndPost(it)
+                            if (canDraw || mSurHolder?.surface?.isValid == true ) {
+                                mSurHolder?.unlockCanvasAndPost(it)
+                            }
                         }
                         videoCanvas = null
                     }

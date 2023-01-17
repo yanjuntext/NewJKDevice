@@ -138,6 +138,8 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     private var mSeekTime = 0
 
+    private var canDraw = false
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -454,7 +456,9 @@ class PlaybackMonitor @JvmOverloads constructor(
                         e.printStackTrace()
                     } finally {
                         videoCanvas?.let {
-                            mSurHolder?.unlockCanvasAndPost(it)
+                            if(canDraw){
+                                mSurHolder?.unlockCanvasAndPost(it)
+                            }
                         }
                         videoCanvas = null
                     }
@@ -735,6 +739,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        canDraw = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -742,6 +747,7 @@ class PlaybackMonitor @JvmOverloads constructor(
             "Monitor",
             "surfaceChanged [screen[$nScreenWidth,$nScreenWidth]],[surface[$width,$height]],measured[$measuredWidth,$measuredHeight]"
         )
+        canDraw = true
         synchronized(this) {
             nScreenWidth = measuredWidth
             nScreenHeight = measuredHeight
@@ -818,6 +824,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        canDraw = false
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?) {

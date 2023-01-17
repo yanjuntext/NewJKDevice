@@ -139,6 +139,8 @@ class PlaybackMonitorVer @JvmOverloads constructor(
     /**是否使用libyuv解析图片*/
     var withYuv = false
 
+    private var canDraw = false
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -259,7 +261,9 @@ class PlaybackMonitorVer @JvmOverloads constructor(
                     } finally {
 
                         videoCanvas?.let {
-                            mSurHolder?.unlockCanvasAndPost(it)
+                            if(canDraw){
+                                mSurHolder?.unlockCanvasAndPost(it)
+                            }
                         }
                         videoCanvas = null
                     }
@@ -716,6 +720,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
 
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        canDraw = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -723,6 +728,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
             "Monitor",
             "surfaceChanged [screen[$nScreenWidth,$nScreenHeight]],[surface[$width,$height]],measured[$measuredWidth,$measuredHeight]"
         )
+        canDraw = true
         synchronized(this) {
             nScreenWidth = height
             nScreenHeight = width
@@ -771,6 +777,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        canDraw = false
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?) {

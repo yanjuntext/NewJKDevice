@@ -445,7 +445,9 @@ class MonitorVer @JvmOverloads constructor(
                     } finally {
 
                         videoCanvas?.let {
-                            mSurHolder?.unlockCanvasAndPost(it)
+                            if(canDraw){
+                                mSurHolder?.unlockCanvasAndPost(it)
+                            }
                         }
                         videoCanvas = null
                     }
