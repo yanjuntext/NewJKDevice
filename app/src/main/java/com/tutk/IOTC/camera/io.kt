@@ -1,7 +1,9 @@
 package com.tutk.IOTC.camera
 
+import android.os.Bundle
 import com.tutk.IOTC.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -223,7 +225,7 @@ class RecvIOJob(
                                 System.arraycopy(ioCtrlBuf, 0, data, 0, nRet)
                                 d(
                                     TAG,
-                                    "tutkio AVAPIs.avRecvIOCtrl  avio recv size=[$nRet],avRecvIOCtrl(${avChannel.mChannel},0x${ioCtrlType[0].toHexString()},${data.getHex()})"
+                                    "tutkio AVAPIs.avRecvIOCtrl  avio recv size=[$nRet],onAVChannelRecv emit -----avRecvIOCtrl(${avChannel.mChannel},0x${ioCtrlType[0].toHexString()},${data.getHex()})"
                                 )
 
                                 if (ioCtrlType[0] == AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETAUDIOOUTFORMAT_RESP) {
@@ -237,7 +239,15 @@ class RecvIOJob(
                                 } else if (ioCtrlType[0] == AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP) {
                                     d(TAG, "IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP")
                                 }
-                                emit(RecvInfo(ioCtrlType[0], data))
+                                d("Monitor","onAVChannelRecv emit -----")
+//                                emit(RecvInfo(ioCtrlType[0], data))
+//                                iavChannelStatus?.onAVChannelRecv(avChannel.mChannel, ioCtrlType[0], data)
+                                emit(RecvInfo(ioCtrlType[0],data))
+//                                emit(Bundle().apply {
+//                                    putInt("type",ioCtrlType[0])
+//                                    putByteArray("data",data)
+//                                })
+                                d("Monitor","onAVChannelRecv emit +++++")
                             } else {
                                 delay(100)
                             }
@@ -245,8 +255,14 @@ class RecvIOJob(
                     }
                 }
             }.flowOn(Dispatchers.IO)
+                .catch {
+                    d("Monitor","onAVChannelRecv emit ----- error=${it.message}")
+                }
                 .collect {
-                    iavChannelStatus?.onAVChannelRecv(avChannel?.mChannel ?: -1, it.type, it.data)
+                    d("Monitor","onAVChannelRecv emit iavChannelStatus=${iavChannelStatus == null}  -${it is RecvInfo}")
+                    if(it is RecvInfo){
+                        iavChannelStatus?.onAVChannelRecv(avChannel?.mChannel ?: -1, it.type, it.data)
+                    }
                 }
         }
     }

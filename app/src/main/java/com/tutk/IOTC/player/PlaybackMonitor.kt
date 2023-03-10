@@ -139,7 +139,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     private var mSeekTime = 0
 
     private var canDraw = false
-
+    private var mMonitorThread:MonitorThread? = null
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -232,7 +232,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
-        renderJob()
+//        renderJob()
         if (mAvChannel < 0) {
             mRecordEvent?.let {
                 if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
@@ -356,9 +356,16 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera?.unregisterIOCallback(this)
         mCamera = null
 
+        destroyRendjob()
+    }
+
+    private fun destroyRendjob(){
         isRunning = false
-        mRenderJob?.cancel()
-        mRenderJob = null
+        mMonitorThread?.stopThread()
+        kotlin.runCatching {
+            mMonitorThread?.join()
+        }
+        mMonitorThread = null
     }
 
     /**
@@ -426,48 +433,107 @@ class PlaybackMonitor @JvmOverloads constructor(
 
 
     private fun renderJob() {
-        if (isRunning && mRenderJob?.isActive == true) {
-            Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
-            return
-        }
-        Liotc.d("Monitor", "renderJob running")
-        isRunning = true
-        mRenderJob = GlobalScope.launch(Dispatchers.IO) {
-
-            var videoCanvas: Canvas? = null
-            mPaint.isDither = true
-
-            while (isRunning && mRenderJob?.isActive == true) {
-                Liotc.d(
-                    "Monitor",
-                    "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
-                )
-                if (mLastFrame != null && mLastFrame?.isRecycled == false) {
-                    try {
-                        videoCanvas = mSurHolder?.lockCanvas()
-                        videoCanvas?.let { canvas ->
-                            canvas.drawColor(Color.BLACK)
-                            mLastFrame?.let { bitmap ->
-                                Liotc.d("Monitor", "drawBitmap")
-                                canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        videoCanvas?.let {
-                            if(canDraw){
-                                mSurHolder?.unlockCanvasAndPost(it)
-                            }
-                        }
-                        videoCanvas = null
-                    }
-                }
-                delay(33L)
+        kotlin.runCatching {
+            if (isRunning && mMonitorThread?.isThreadRunning() == true) {
+                Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+                return
             }
-            Liotc.d("Monitor", "renderJob end")
-            isRunning = false
+            Liotc.d("Monitor", "surfaceDestroyed 1 renderJob=$canDraw")
+            if (!canDraw) return
+            Liotc.d("Monitor", "renderJob running")
+            isRunning = true
+
+
+            mMonitorThread = object:MonitorThread(surfaceHolder = holder){
+                override fun run() {
+
+                    var videoCanvas: Canvas? = null
+
+                    mPaint.isDither = true
+
+                    while (isThreadRunning() ) {
+                        if (mCamera == null) break
+                        Liotc.d(
+                            "Monitor",
+                            "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}],canDraw=$canDraw"
+                        )
+                        if (!isThreadRunning()) {
+                            break
+                        }
+                        if (mLastFrame != null && mLastFrame?.isRecycled == false) {
+                            try {
+                                videoCanvas = mSurHolder?.lockCanvas()
+                                videoCanvas?.let { canvas ->
+                                    canvas.drawColor(Color.BLACK)
+                                    mLastFrame?.let { bitmap ->
+                                        Liotc.d("Monitor", "drawBitmap")
+                                        canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
+                            } finally {
+                                videoCanvas?.let {
+                                    if (this@PlaybackMonitor.canDraw) {
+                                        mSurHolder?.unlockCanvasAndPost(it)
+                                    }
+                                }
+
+                            }
+                        }
+                        Thread.sleep(33L)
+                    }
+                    Liotc.d("Monitor", "renderJob end")
+                }
+            }
+            mMonitorThread?.start()
+
+        }.onFailure {
+
         }
+//        if (isRunning && mRenderJob?.isActive == true) {
+//            Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+//            return
+//        }
+//        Liotc.d("Monitor", "renderJob running")
+//        isRunning = true
+//        mRenderJob = GlobalScope.launch(Dispatchers.IO) {
+//
+//            var videoCanvas: Canvas? = null
+//            mPaint.isDither = true
+//
+//            while (isRunning && mRenderJob?.isActive == true) {
+//                Liotc.d(
+//                    "Monitor",
+//                    "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
+//                )
+//                if (mLastFrame != null && mLastFrame?.isRecycled == false) {
+//                    try {
+//                        videoCanvas = mSurHolder?.lockCanvas()
+//                        videoCanvas?.let { canvas ->
+//                            canvas.drawColor(Color.BLACK)
+//                            mLastFrame?.let { bitmap ->
+//                                Liotc.d("Monitor", "drawBitmap")
+//                                canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
+//                            }
+//                        }
+//                    } catch (e: Exception) {
+//                        e.printStackTrace()
+//                    } finally {
+//                        videoCanvas?.let {
+//                            if(canDraw){
+//                                mSurHolder?.unlockCanvasAndPost(it)
+//                            }
+//                        }
+//                        videoCanvas = null
+//                    }
+//                }
+//                delay(33L)
+//            }
+//            Liotc.d("Monitor", "renderJob end")
+//            isRunning = false
+//        }
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
@@ -475,18 +541,15 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun onStart() {
         Liotc.d("Monitor", "onStart")
 
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
     fun onResume() {
         resume()
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
     fun onPause() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PLAYING) {
             pause()
@@ -494,14 +557,13 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     fun onStop() {
         if (isRecording) {
             stopRecord()
         }
+        destroyRendjob()
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
     fun onDestroy() {
         Liotc.d("Monitor", "onDestroy")
 
@@ -821,10 +883,15 @@ class PlaybackMonitor @JvmOverloads constructor(
 //                vBottom.toFloat()
 //            )
         }
+        renderJob()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         canDraw = false
+        isRunning = false
+        mMonitorThread?.stopThread()
+
+        mRenderJob?.cancel()
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?) {
@@ -845,7 +912,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
             if (mRenderJob == null || mRenderJob?.isActive != true || !isRunning) {
                 Liotc.d("Monitor", "restart render job")
-                renderJob()
+//                renderJob()
             }
 
             nScreenWidth = measuredWidth

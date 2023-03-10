@@ -24,10 +24,12 @@ import kotlinx.coroutines.*
  * @Description:
  */
 const val HEXES = "0123456789ABCDEF"
-internal const val MAX_BUF_SIZE = 1920 * 1080 * 3
+//internal const val MAX_BUF_SIZE = 1920 * 1080 * 3
+internal const val MAX_BUF_SIZE = 2304 * 1296 * 3
 
 //视频解析最大buffer
-internal const val MAX_FRAMEBUF = 1920 * 1080 * 4
+//internal const val MAX_FRAMEBUF = 1920 * 1080 * 4
+internal const val MAX_FRAMEBUF = 2304 * 1296 * 4
 
 internal const val MAX_AUDIO_BUF_SIZE = 1280
 

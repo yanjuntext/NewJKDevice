@@ -3,6 +3,10 @@ package com.tutk.IOTC
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import com.tutk.IOTC.camera.*
 import com.tutk.IOTC.listener.*
 import com.tutk.IOTC.status.PlayMode
@@ -241,6 +245,28 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     private val mSupportStreamList = mutableListOf<TSupportStream>()
     private var mTTimeZone: TTimeZone? = null
+
+    private val handler = object:Handler(Looper.myLooper()!!){
+        override fun handleMessage(msg: Message) {
+            super.handleMessage(msg)
+            when(msg.what){
+                OPT_AVChannelRecv->{
+                    d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData handler")
+                    //val bundle = Bundle()
+                    //        bundle.putInt("channel",channel)
+                    //        bundle.putInt("type",type)
+                    //        bundle.putByteArray("data",data)
+                    //        message.what = OPT_AVChannelRecv
+                    val bundle = msg.data
+                    val channel = bundle.getInt("channel")
+                    val type = bundle.getInt("type")
+                    val data = bundle.getByteArray("data")
+                    broadCameraReceiverIOCtrlData(channel, type, data)
+                }
+            }
+
+        }
+    }
 
     /**
      * 重连间隔  ms
@@ -524,6 +550,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**广播设备接收到的数据*/
     private fun broadCameraReceiverIOCtrlData(channel: Int, type: Int, data: ByteArray?) {
+        d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData -------")
         when (type) {
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_PETS_AUDIO_FILE_SEND_RESP -> {
                 //发送文件命令
@@ -585,7 +612,9 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
         val iterator = mOnIOCallbacks.iterator()
         while (iterator.hasNext()) {
-            iterator.next().receiveIOCtrlData(this, channel, type, data)
+            val next = iterator.next()
+            d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData -------${next::class.java.name}")
+            next.receiveIOCtrlData(this, channel, type, data)
         }
     }
 
@@ -1180,8 +1209,16 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     override fun onAVChannelStatus(channel: Int, status: Int) {
         broadCameraChannelInfo(channel, status)
     }
-
+    private val OPT_AVChannelRecv = 5055
     override fun onAVChannelRecv(channel: Int, type: Int, data: ByteArray?) {
+        d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData")
+//        val message = handler.obtainMessage()
+//        val bundle = Bundle()
+//        bundle.putInt("channel",channel)
+//        bundle.putInt("type",type)
+//        bundle.putByteArray("data",data)
+//        message.what = OPT_AVChannelRecv
+//        handler.sendMessage(message)
         broadCameraReceiverIOCtrlData(channel, type, data)
     }
 
