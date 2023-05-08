@@ -25,7 +25,13 @@ interface OnFrameCallback {
     )
 }
 
-//io命令监听
+/**
+ * io命令监听
+ * @param camera
+ * @param avChannel channel 通道号
+ * @param avIOCtrlMsgType 命令号
+ * @param data 返回数据
+ */
 fun interface OnIOCallback {
     fun receiveIOCtrlData(camera: Camera?, avChannel: Int, avIOCtrlMsgType: Int, data: ByteArray?)
 }
