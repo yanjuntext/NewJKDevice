@@ -672,7 +672,6 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     private var connectJob: Job? = null
     private var connecting = false
 
-    private fun isActive() = connectJob?.isActive == true
 
     //开启连接
     private fun startConnectJob() {
@@ -689,11 +688,11 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                 val stSInfoEx = St_SInfoEx()
                 var ret = -1
                 var isReconnect = false
-                while (connecting && connectJob?.isActive == true) {
+                while (connecting && isActive) {
                     ret = -1
                     if (first) {
-                        while (mSID < 0 && connectJob?.isActive == true) {
-                            if (isActive() && !isReconnect) {
+                        while (mSID < 0 && isActive) {
+                            if (isActive && !isReconnect) {
                                 emit(CONNECTION_STATE_CONNECTING)
                             }
                             mSID = IOTC_CONNECT_ING
@@ -716,12 +715,12 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
                             when {
                                 mSID >= 0 -> {
-                                    if (isActive()) {
+                                    if (isActive) {
                                         emit(CONNECTION_STATE_CONNECTED)
                                     }
                                     d(
                                         "startConnectJob",
-                                        "===ThreadConnectDev connect ok msid[$mSID],devid[$uid],[${isActive()}]"
+                                        "===ThreadConnectDev connect ok msid[$mSID],devid[$uid],[${isActive}]"
                                     )
                                 }
                                 mSID == IOTCAPIs.IOTC_ER_CONNECT_IS_CALLING -> {
@@ -730,7 +729,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                 }
                                 (mSID == IOTCAPIs.IOTC_ER_UNKNOWN_DEVICE) || (mSID == IOTCAPIs.IOTC_ER_UNLICENSE)
                                         || (mSID == IOTCAPIs.IOTC_ER_CAN_NOT_FIND_DEVICE) -> {
-                                    if (isActive()) {
+                                    if (isActive) {
                                         emit(CONNECTION_STATE_UNKNOWN_DEVICE)
                                     }
                                     break
@@ -739,13 +738,13 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                     break
                                 }
                                 mSID == IOTCAPIs.IOTC_ER_DEVICE_NOT_SECURE_MODE || mSID == IOTCAPIs.IOTC_ER_DEVICE_SECURE_MODE -> {
-                                    if (isActive()) {
+                                    if (isActive) {
                                         emit(CONNECTION_STATE_UNSUPPORTED)
                                     }
                                     break
                                 }
                                 else -> {
-                                    if (isActive()) {
+                                    if (isActive) {
                                         emit(CONNECTION_STATE_CONNECT_FAILED)
                                     }
                                     break
@@ -759,7 +758,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                         d("startConnectJob", "start check dev status 111")
                         delay(30000L)
                         d("startConnectJob", "start check dev status 2222")
-                        if (!connecting || connectJob?.isActive != true) {
+                        if (!connecting || !isActive) {
                             d("startConnectJob", "start check dev status stop 111")
                             break
                         }
@@ -783,13 +782,13 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             } else if (ret == IOTCAPIs.IOTC_ER_REMOTE_TIMEOUT_DISCONNECT
                                 || ret == IOTCAPIs.IOTC_ER_TIMEOUT
                             ) {
-                                if (isActive()) {
+                                if (isActive) {
                                     emit(CONNECTION_STATE_TIMEOUT)
                                 }
                                 mSID = -1
                                 setAvChannelSid(mSID)
                             } else {
-                                if (isActive()) {
+                                if (isActive) {
                                     emit(CONNECTION_STATE_CONNECT_FAILED)
                                 }
                                 mSID = -1
@@ -798,10 +797,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                         }
                     }
 
-                    if(ret < 0 && mReconnectTime >= 1000 && connecting && connectJob?.isActive == true){
+                    if(ret < 0 && mReconnectTime >= 1000 && connecting && isActive){
                         Liotc.d("startConnectJob","reconnect [$mReconnectTime],[$ret]")
                         delay(mReconnectTime)
-                        if(connecting && connectJob?.isActive == true){
+                        if(connecting && isActive){
                             emit(IOTC_CONNECT_ING)
                         }
                         break
@@ -813,7 +812,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 //                    IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
 //                }
                 d("startConnectJob", "stopThread startConnectJob uid[$uid]")
-                if (isActive()) {
+                if (isActive) {
                     emit(-1)
                 }
             }.flowOn(Dispatchers.IO)

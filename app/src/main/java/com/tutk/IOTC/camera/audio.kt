@@ -37,7 +37,6 @@ class RecvAudioJob(
     //上次语音格式
     private var mLastVoiceType: VoiceType? = null
 
-    private fun isActive() = runJob?.isActive == true
 
     private fun isSupportAudio(codeId: Int) =
         codeId == AVFrame.MEDIA_CODEC_AUDIO_MP3
@@ -82,13 +81,13 @@ class RecvAudioJob(
 
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow<Int> {
-                while (isRunning && isActive() && ((avChannel?.SID
+                while (isRunning && isActive && ((avChannel?.SID
                         ?: -1) < 0 || (avChannel?.mAvIndex
                         ?: -1) < 0 || avChannel?.SID == IOTC_CONNECT_ING)
                 ) {
                     delay(100)
                 }
-                if (!isActive()) {
+                if (!isActive) {
                     return@flow
                 }
                 avChannel?.audioBPS = 0
@@ -109,7 +108,7 @@ class RecvAudioJob(
                 val decodeOutPutBuffer = ByteArray(65535)
 
 
-                if (isRunning && isActive() && (avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex
+                if (isRunning && isActive && (avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex
                         ?: -1) >= 0
                 ) {
                     d("IOTYPE_USER_IPCAM_AUDIOSTART [${avChannel?.mAvIndex}]")
@@ -121,8 +120,8 @@ class RecvAudioJob(
                     )
                 }
 
-                while (isRunning && isActive() && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
-                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive()) {
+                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
+                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
                         if ((avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex ?: -1) >= 0) {
                             d("get audio [${avChannel?.mAvIndex}]")
                             nReadSize = AVAPIs.avRecvAudioData(
@@ -405,7 +404,7 @@ class RecvAudioJob(
 
                 d("stop 3")
                 //释放单向语音播放资源
-                d("unInitAudioTrack  333  $isRunning,${isActive()},${(avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)},${LocalRecordHelper.recording},${avChannel?.audioPlayStatus == true}")
+                d("unInitAudioTrack  333  $isRunning,${isActive},${(avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)},${LocalRecordHelper.recording},${avChannel?.audioPlayStatus == true}")
                 AudioTrackHelper.unInitAudioTrack()
 
                 d("stop 4 ${avChannel?.mChannel}")
@@ -457,7 +456,6 @@ class SendAudioJob(
     private var mSendAudioSessionIndex = -1
     private var mSendAudioChannelIndex = -1
 
-    private fun isActive() = runJob?.isActive ?: false
 
     private fun getAudioInfo(
         codec_id: Short,
@@ -519,7 +517,7 @@ class SendAudioJob(
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
 
-                while (isRunning && isActive()
+                while (isRunning && isActive
                     && ((avChannel?.SID ?: -1) < 0
                             || (avChannel?.mAvIndex ?: -1) < 0
                             || avChannel?.SID == IOTC_CONNECT_ING)
@@ -527,7 +525,7 @@ class SendAudioJob(
                     delay(100)
                 }
 
-                while (isRunning && isActive()) {
+                while (isRunning && isActive) {
                     d("send audio session sid[${avChannel?.SID}]")
                     //获取空闲的信道
                     mSendAudioSessionIndex =
@@ -543,7 +541,7 @@ class SendAudioJob(
 
                 }
                 d("11111")
-                if (!isActive()) {
+                if (!isActive) {
                     return@flow
                 }
                 d("22222")
@@ -553,12 +551,12 @@ class SendAudioJob(
 //                    AVIOCTRLDEFs.SMsgAVIoctrlAVStream.parseContent(mSendAudioSessionIndex)
                 )
                 d("start avServerStart[${avChannel?.SID}],[${mSendAudioSessionIndex}]")
-                while (isRunning && isActive() && avServStart2() < 0) {
-                    if (!isRunning || !isActive()) {
+                while (isRunning && isActive && avServStart2() < 0) {
+                    if (!isRunning || !isActive) {
                         break
                     }
                     delay(20L)
-                    if (!isRunning || !isActive()) {
+                    if (!isRunning || !isActive) {
                         break
                     }
                     d("mSendAudioChannelIndex [$mSendAudioChannelIndex]")
@@ -578,7 +576,7 @@ class SendAudioJob(
                             }
                         }
                         delay(200)
-                        if (!isRunning || !isActive()) {
+                        if (!isRunning || !isActive) {
                             break
                         }
                         val max = 10
@@ -593,8 +591,8 @@ class SendAudioJob(
                         )
                     }
                 }
-                if (isActive() && isRunning) {
-                    if (isRunning && isActive()) {
+                if (isActive && isRunning) {
+                    if (isRunning && isActive) {
                         d("emit 1")
                         emit(1)
                     }
@@ -612,9 +610,9 @@ class SendAudioJob(
 
                     val flag =
                         (AVFrame.AUDIO_SAMPLE_8K shl 2) or (AVFrame.AUDIO_DATABITS_16 shl 1) or AVFrame.AUDIO_CHANNEL_MONO
-                    while (isRunning && isActive() && mSendAudioChannelIndex >= 0) {
+                    while (isRunning && isActive && mSendAudioChannelIndex >= 0) {
 
-                        while (avChannel?.audioRecordStatus == true && isActive()) {
+                        while (avChannel?.audioRecordStatus == true && isActive) {
                             //切换了语音类型 例如：单向语音变双向语音 或者 双向语音变单向语音
                             if (mLastVoiceType != avChannel?.mVoiceType && mLastVoiceType != null) {
                                 //释放双向语音资源
@@ -808,7 +806,7 @@ class SendAudioJob(
                 mSendAudioSessionIndex = -1
                 d("sendAudio stop 6")
 
-                if (isActive()) {
+                if (isActive) {
                     emit(0)
                 }
                 d("stop sendAudio")

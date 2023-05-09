@@ -43,10 +43,10 @@ class StartJob(
         isStoped = false
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-                while (runJob?.isActive == true) {
+                while (isActive) {
                     var connectingIndex = 0
                     var offlineIndex = 0
-                    while (isRunning && runJob?.isActive == true) {
+                    while (isRunning && isActive) {
                         if (mSID == IOTC_CONNECT_ING) {
                             connectingIndex++
                             d(TAG, "StartJob mSID[$mSID],connectingIndex = [${connectingIndex}]")
@@ -193,7 +193,7 @@ class RecvIOJob(
 
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-                while (isRunning && isActive()
+                while (isRunning && isActive
                     && ((avChannel?.SID ?: -1) < 0
                             || (avChannel?.mAvIndex ?: -1) < 0
                             || avChannel?.SID == IOTC_CONNECT_ING)
@@ -206,7 +206,7 @@ class RecvIOJob(
 //                ) {
 //                    delay(1000L)
 //                }
-                while (isRunning && runJob?.isActive == true) {
+                while (isRunning && isActive) {
                     avChannel?.let { avChannel ->
                         if (mSID >= 0 && (avChannel.mAvIndex >= 0)) {
                             val ioCtrlType = IntArray(1)
@@ -312,14 +312,14 @@ class SendIOJob(
         isRunning = true
         isStoped = false
         runJob = GlobalScope.launch(Dispatchers.IO) {
-            while (runJob?.isActive == true) {
-                while (isRunning && runJob?.isActive == true
+            while (isActive) {
+                while (isRunning && isActive
                     && (mSID < 0 || (avChannel?.mAvIndex ?: -1) < 0)
                 ) {
                     delay(1000L)
                 }
 
-                if (isRunning && runJob?.isActive == true && mSID >= 0 && (avChannel?.mAvIndex
+                if (isRunning && isActive && mSID >= 0 && (avChannel?.mAvIndex
                         ?: -1) >= 0
                 ) {
                     val avIndex = (avChannel?.mAvIndex ?: -1)
@@ -333,7 +333,7 @@ class SendIOJob(
 
                 }
 
-                while (isRunning && runJob?.isActive == true) {
+                while (isRunning && isActive) {
                     val avIndex = avChannel?.mAvIndex ?: -1
                     if (mSID >= 0 && avIndex >= 0 && (avChannel?.IOCtrlQueue?.isEmpty() == false
                                 || avChannel?.IOCtrlFastQueue?.isEmpty() == false)
@@ -343,7 +343,7 @@ class SendIOJob(
 
                         if (commonSize > 0) {
                             avChannel?.IOCtrlQueue?.Dequeue()?.let { data ->
-                                if (isRunning && runJob?.isActive == true) {
+                                if (isRunning && isActive) {
                                     val ret = AVAPIs.avSendIOCtrl(
                                         avIndex,
                                         data.IOCtrlType,
@@ -365,7 +365,7 @@ class SendIOJob(
                             }
                         } else if (fastSize > 0) {
                             avChannel?.IOCtrlFastQueue?.Dequeue()?.let { data ->
-                                if (isRunning && runJob?.isActive == true) {
+                                if (isRunning && isActive) {
                                     val ret = AVAPIs.avSendIOCtrl(
                                         avIndex,
                                         data.IOCtrlType,

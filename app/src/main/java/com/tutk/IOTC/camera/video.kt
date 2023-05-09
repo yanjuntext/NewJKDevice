@@ -95,7 +95,7 @@ class RecvVideoJob(
 
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-                while (isRunning && isActive() && (mSID < 0 || getAvIndex() < 0 || mSID == IOTC_CONNECT_ING)) {
+                while (isRunning && isActive && (mSID < 0 || getAvIndex() < 0 || mSID == IOTC_CONNECT_ING)) {
                     delay(100)
                 }
 
@@ -127,7 +127,7 @@ class RecvVideoJob(
                 avChannel?.VideoFrameQueue?.removeAll()
                 mNoFramIndex = 0
 
-                if (isRunning && isActive() && getAvIndex() >= 0) {
+                if (isRunning && isActive && getAvIndex() >= 0) {
                     d(TAG, "发送511命令")
                     avChannel?.IOCtrlQueue?.Enqueue(
                         getAvIndex(),
@@ -259,7 +259,7 @@ class RecvVideoJob(
                                 if (mNoFramIndex >= 0) {
                                     mNoFramIndex++
                                     if (mNoFramIndex >= 35) {
-                                        if (isRunning && isActive() && getAvIndex() >= 0 && mSID >= 0) {
+                                        if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
                                             //重新请求IFrame
                                             avChannel?.IOCtrlQueue?.Enqueue(
                                                 getAvIndex(), 511,
@@ -470,7 +470,7 @@ class DecodeVideoJob(
         var videoDecodeResult = -1
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-                while (isRunning && isActive()) {
+                while (isRunning && isActive) {
                     if (avChannel?.VideoFrameQueue == null) {
                         return@flow
                     }
@@ -510,7 +510,7 @@ class DecodeVideoJob(
                             var skipTime = avFrame.timestamp - lastFrameTimeStamp
                             lastFrameTimeStamp = avFrame.timestamp.toLong()
 
-                            while (isActive()) {
+                            while (isActive) {
                                 if (avChannel.VideoFrameQueue?.isFirstIFrame() != true) {
                                     avFrame = avChannel.VideoFrameQueue?.removeHead()
                                     if (avFrame == null) {
@@ -534,7 +534,7 @@ class DecodeVideoJob(
                         } else {
                             d("camera video dataavFrameSize[$avFrameSize],mAvFramep[${mAvFrame == null}]")
 
-                            if (avFrameSize > 0 && isActive()) {
+                            if (avFrameSize > 0 && isActive) {
                                 out_size[0] = 0
                                 out_width[0] = 0
                                 out_height[0] = 0
@@ -918,7 +918,7 @@ internal object LocalRecordHelper {
                     }
                 }
 
-                if (recording && mRecordJob?.isActive == true) {
+                if (recording && isActive) {
                     d(TAG, "startRecord width[$width],height[$height] 1")
                     mLocalRecord.setRecorderVideoTrack(width, height)
                     d(TAG, "startRecord width[$width],height[$height] 2,codeId[$codeId]")
@@ -949,7 +949,7 @@ internal object LocalRecordHelper {
             runJob = null
             runJob = GlobalScope.launch(Dispatchers.Main) {
                 flow {
-                    while (recording && runJob?.isActive == true) {
+                    while (recording && isActive) {
                         emit(1)
                         delay(1000L)
                     }
