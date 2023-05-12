@@ -272,7 +272,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
      * 重连间隔  ms
      * if[mReconnectTime] is 0,means not to reconnect automatically
      */
-    private var mReconnectTime = 10000L
+    private var mReconnectTime = 0L
 
     fun setReconnectTime(reconnectTime:Long){
         mReconnectTime = reconnectTime
@@ -293,7 +293,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun unregisterSessionChannelCallback(callback: OnSessionChannelCallback?) {
         callback ?: return
-        mOnSessionChannelCallbacks.remove(callback)
+        val iterator = mOnSessionChannelCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun clearSessionChannelCallback() {
@@ -319,7 +326,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun unregisterIOCallback(callback: OnIOCallback?) {
         callback ?: return
-        mOnIOCallbacks.remove(callback)
+        val iterator = mOnIOCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun clearIOCallback() {
@@ -341,7 +355,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun unregisterFrameCallback(callback: OnFrameCallback?) {
         callback ?: return
-        mOnFrameCallbacks.remove(callback)
+        val iterator = mOnFrameCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun clearFrameCallback() {
@@ -363,7 +384,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun unregisterExtraCallback(callback: OnExtraCallback?) {
         callback ?: return
-        mOnExtraCallbacks.remove(callback)
+        val iterator = mOnExtraCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun clearExtraCallback() {
@@ -389,7 +417,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun unRegisterAVChannelRecordStatus(listener: IAVChannelRecordStatus?) {
         listener ?: return
-        mIAVChannelRecordStatus.remove(listener)
+        val iterator = mIAVChannelRecordStatus.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == listener) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun registerIVSendFileCallback(callback: IVSendFileCallback?) {
@@ -405,7 +440,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     fun unRegisterIVSendFileCallback(callback: IVSendFileCallback?) {
-        mSendFileStatusCallbacks.remove(callback)
+        val iterator = mSendFileStatusCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun registerIVDownloadFileCallback(callback: IVDownloadFileCallback?) {
@@ -421,7 +463,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     fun unRegisterIVDownloadFileCallback(callback: IVDownloadFileCallback?) {
-        mDownloadFileStatusCallbacks.remove(callback)
+        val iterator = mDownloadFileStatusCallbacks.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next == callback) {
+                iterator.remove()
+                return
+            }
+        }
     }
 
     fun isSessionConnected() = mSID >= 0
