@@ -124,6 +124,11 @@ class RecvAudioJob(
                     while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
                         if ((avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex ?: -1) >= 0) {
                             d("get audio [${avChannel?.mAvIndex}]")
+
+                            if(avChannel?.audioRecordStatus == true){
+                                iavChannelStatus?.onListenerStatus(true)
+                            }
+
                             nReadSize = AVAPIs.avRecvAudioData(
                                 avChannel?.mAvIndex ?: -1,
                                 recvBuf,
@@ -397,6 +402,7 @@ class RecvAudioJob(
                     d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
                 }
                 d("stop 2 ")
+                iavChannelStatus?.onListenerStatus(false)
                 //关闭双向语音
                 avChannel?.mAudioPlayer?.soundOff()
                 //释放双向语音资源
@@ -423,6 +429,7 @@ class RecvAudioJob(
 
     fun stop() {
         isRunning = false
+        iavChannelStatus?.onListenerStatus(false)
     }
 
     private fun d(msg: String) {
@@ -700,6 +707,11 @@ class SendAudioJob(
                                 //开启录音
                                 AudioTrackHelper.resumeAudioRecord()
                                 d("ONE_WAY_VOICE [${avChannel.mAudioCodec}]")
+
+                                if(avChannel?.audioRecordStatus == true){
+                                    iavChannelStatus?.onTalkStatus(true)
+                                }
+
                                 when (avChannel.mAudioCodec) {
                                     AVFrame.MEDIA_CODEC_AUDIO_G711A -> {
                                         var size = AudioTrackHelper.readAudioRecord(inG711BufByte)
@@ -772,7 +784,7 @@ class SendAudioJob(
                     e.printStackTrace()
                 }
 
-
+                iavChannelStatus?.onTalkStatus(false)
                 //释放单向语音资源
                 AudioTrackHelper.unInitAudioRecord()
                 d("sendAudio stop 2")
@@ -826,6 +838,7 @@ class SendAudioJob(
 
     fun stop() {
         isRunning = false
+        iavChannelStatus?.onTalkStatus(false)
     }
 
     private fun d(msg: String) {

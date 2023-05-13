@@ -246,6 +246,8 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     private val mSupportStreamList = mutableListOf<TSupportStream>()
     private var mTTimeZone: TTimeZone? = null
 
+    var onAudioListener:OnAudioListener? = null
+
     private val handler = object:Handler(Looper.myLooper()!!){
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
@@ -1346,5 +1348,13 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             mAvDownloadFileChannel = null
             mDownloadFileContext = null
         }
+    }
+
+    override fun onListenerStatus(status: Boolean) {
+        onAudioListener?.onListenerStatus(status)
+    }
+
+    override fun onTalkStatus(status: Boolean) {
+        onAudioListener?.onTalkStatus(status)
     }
 }

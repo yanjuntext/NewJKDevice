@@ -45,7 +45,7 @@ class Monitor @JvmOverloads constructor(
     attr: AttributeSet?,
     defStyle: Int = 0
 ) : SurfaceView(context, attr, defStyle), LifecycleObserver, SurfaceHolder.Callback, OnIOCallback,
-    OnSessionChannelCallback, OnFrameCallback {
+    OnSessionChannelCallback, OnFrameCallback ,OnAudioListener{
 
 
     private var mPlayMode: PlayMode = PlayMode.PLAY_LIVE
@@ -128,6 +128,8 @@ class Monitor @JvmOverloads constructor(
     private var canDraw = false
 
     private var mMonitorThread:MonitorThread? = null
+
+    var onAudioListener:OnAudioListener? = null
 
     init {
         mSurHolder = holder
@@ -245,6 +247,7 @@ class Monitor @JvmOverloads constructor(
         mCamera?.registerSessionChannelCallback(this)
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
+        mCamera?.onAudioListener = this
         mAvChannel = avChannel
         mCamera?.setPlayMode(mAvChannel, mPlayMode)
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
@@ -258,7 +261,7 @@ class Monitor @JvmOverloads constructor(
     /**解绑Camera*/
     fun unAttachCamera() {
         mAvChannel = -1
-
+        mCamera?.onAudioListener = null
         mCamera?.unregisterSessionChannelCallback(this)
         mCamera?.unregisterFrameCallback(this)
         mCamera?.unregisterIOCallback(this)
@@ -1092,6 +1095,14 @@ class Monitor @JvmOverloads constructor(
 
     fun interface OnMonitorVideoQualityCallback {
         fun onMonitorVideoQuality(quality: VideoQuality)
+    }
+
+    override fun onListenerStatus(status: Boolean) {
+        onAudioListener?.onListenerStatus(status)
+    }
+
+    override fun onTalkStatus(status: Boolean) {
+        onAudioListener?.onTalkStatus(status)
     }
 }
 

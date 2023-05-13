@@ -24,6 +24,7 @@ import kotlinx.coroutines.*
  * @Description:
  */
 const val HEXES = "0123456789ABCDEF"
+
 //internal const val MAX_BUF_SIZE = 1920 * 1080 * 3
 internal const val MAX_BUF_SIZE = 2304 * 1296 * 3
 
@@ -353,7 +354,7 @@ class AVChannel(
     @Synchronized
     internal fun initAcousticEchoCanceler(): Boolean {
         if (mAcousticEchoCanceler == null) {
-            d("AcousticEchoCanceler","initAcousticEchoCanceler")
+            d("AcousticEchoCanceler", "initAcousticEchoCanceler")
             mAcousticEchoCanceler = AcousticEchoCanceler()
             mAcousticEchoCanceler?.Open(8000, 16)
         }
@@ -361,22 +362,22 @@ class AVChannel(
     }
 
     internal fun captureAcousticEchoCanceler(data: ByteArray, length: Int) {
-        if(mAcousticEchoCanceler != null){
-            d("AcousticEchoCanceler","captureAcousticEchoCanceler")
+        if (mAcousticEchoCanceler != null) {
+            d("AcousticEchoCanceler", "captureAcousticEchoCanceler")
         }
         mAcousticEchoCanceler?.Capture(data, length)
     }
 
     internal fun playAcousticEchoCanceler(data: ByteArray, length: Int) {
-        if(mAcousticEchoCanceler != null){
-            d("AcousticEchoCanceler","playAcousticEchoCanceler")
+        if (mAcousticEchoCanceler != null) {
+            d("AcousticEchoCanceler", "playAcousticEchoCanceler")
         }
         mAcousticEchoCanceler?.Play(data, length)
     }
 
     internal fun releaseAcousticEchoCanceler() {
-        if(mAcousticEchoCanceler != null){
-            d("AcousticEchoCanceler","releaseAcousticEchoCanceler")
+        if (mAcousticEchoCanceler != null) {
+            d("AcousticEchoCanceler", "releaseAcousticEchoCanceler")
         }
         mAcousticEchoCanceler?.close()
         mAcousticEchoCanceler = null
@@ -462,6 +463,13 @@ interface IAVChannelListener {
         downloadTotal: Int,
         progress: Int
     )
+
+    /**音频监听状态*/
+    fun onListenerStatus(status: Boolean)
+
+    /**音频发送状态*/
+    fun onTalkStatus(status: Boolean)
+
 }
 
 

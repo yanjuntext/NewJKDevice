@@ -16,9 +16,7 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
 import com.tutk.IOTC.*
 import com.tutk.IOTC.Camera
 import com.tutk.IOTC.camera.VideoQuality
@@ -46,7 +44,7 @@ class MonitorVer @JvmOverloads constructor(
     attr: AttributeSet?,
     defStyle: Int = 0
 ) : SurfaceView(context, attr, defStyle), LifecycleObserver, SurfaceHolder.Callback, OnIOCallback,
-    OnSessionChannelCallback, OnFrameCallback {
+    OnSessionChannelCallback, OnFrameCallback, OnAudioListener {
     private var mPlayMode: PlayMode = PlayMode.PLAY_LIVE
     private var mVoiceType: VoiceType = VoiceType.ONE_WAY_VOICE
 
@@ -139,7 +137,8 @@ class MonitorVer @JvmOverloads constructor(
     var withYuv = false
 
     private var canDraw = false
-    private var mMonitorThread:MonitorThread? = null
+    private var mMonitorThread: MonitorThread? = null
+    var onAudioListener: OnAudioListener? = null
 
     init {
         mSurHolder = holder
@@ -264,6 +263,7 @@ class MonitorVer @JvmOverloads constructor(
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
         mAvChannel = avChannel
+        mCamera?.onAudioListener = this
         mCamera?.setPlayMode(mAvChannel, mPlayMode)
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
@@ -274,7 +274,7 @@ class MonitorVer @JvmOverloads constructor(
     /**解绑Camera*/
     fun unAttachCamera() {
         mAvChannel = -1
-
+        mCamera?.onAudioListener = null
         mCamera?.unregisterSessionChannelCallback(this)
         mCamera?.unregisterFrameCallback(this)
         mCamera?.unregisterIOCallback(this)
@@ -283,7 +283,7 @@ class MonitorVer @JvmOverloads constructor(
         destroyRendjob()
     }
 
-    private fun destroyRendjob(){
+    private fun destroyRendjob() {
         isRunning = false
         mMonitorThread?.stopThread()
         kotlin.runCatching {
@@ -338,7 +338,10 @@ class MonitorVer @JvmOverloads constructor(
 
     /**监听*/
     fun setAudioListener(audioListener: AudioListener) {
-        Liotc.d("Monitor", "unInitAudioTrack setAudioListener ${audioListener == AudioListener.UNMUTE}     type=$mVoiceType")
+        Liotc.d(
+            "Monitor",
+            "unInitAudioTrack setAudioListener ${audioListener == AudioListener.UNMUTE}     type=$mVoiceType"
+        )
         if (mVoiceType == VoiceType.ONE_WAY_VOICE && audioListener == AudioListener.UNMUTE) {
             //如果是单向语音，开启了监听，必须要关闭通话
             setAudioTalker(AudioTalker.UNTALK)
@@ -351,7 +354,10 @@ class MonitorVer @JvmOverloads constructor(
         Liotc.d("Monitor", "unInitAudioTrack setAudioTalker $audioTalker  type=$mVoiceType")
         if (mVoiceType == VoiceType.ONE_WAY_VOICE && audioTalker == AudioTalker.TALK) {
             //如果是单向语音，开启了通话，必须要关闭监听
-            Liotc.d("Monitor", "unInitAudioTrack setAudioTalker $audioTalker  type=$mVoiceType   1`1111")
+            Liotc.d(
+                "Monitor",
+                "unInitAudioTrack setAudioTalker $audioTalker  type=$mVoiceType   1`1111"
+            )
             setAudioListener(AudioListener.MUTE)
         }
         mCamera?.setAudioRecordStatus(context, mAvChannel, audioTalker == AudioTalker.TALK)
@@ -417,21 +423,24 @@ class MonitorVer @JvmOverloads constructor(
 
         runCatching {
             if (isRunning && mMonitorThread?.isThreadRunning() == true) {
-                Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+                Liotc.d(
+                    "Monitor",
+                    "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]"
+                )
                 return
             }
             Liotc.d("Monitor", "surfaceDestroyed 1 renderJob=$canDraw")
             if (!canDraw) return
             Liotc.d("Monitor", "renderJob running")
             isRunning = true
-            mMonitorThread = object:MonitorThread(surfaceHolder = holder){
+            mMonitorThread = object : MonitorThread(surfaceHolder = holder) {
                 override fun run() {
 
                     var videoCanvas: Canvas? = null
 
                     mPaint.isDither = true
 
-                    while (isThreadRunning() ) {
+                    while (isThreadRunning()) {
                         if (mCamera == null) break
                         Liotc.d(
                             "Monitor",
@@ -460,7 +469,7 @@ class MonitorVer @JvmOverloads constructor(
 
                             } catch (e: Exception) {
                                 e.printStackTrace()
-                                Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
+                                Liotc.d("Monitor", "surfaceDestroyed renderJob error=${e.message}")
                             } finally {
                                 videoCanvas?.let {
                                     if (this@MonitorVer.canDraw) {
@@ -973,7 +982,7 @@ class MonitorVer @JvmOverloads constructor(
                 Liotc.d("Monitor", " Audio Codec resp ")
                 if (isShowing) {
                     isPlaying = true
-                    mCamera?.startShow(context, mAvChannel,withYuv = withYuv)
+                    mCamera?.startShow(context, mAvChannel, withYuv = withYuv)
                 }
 //                renderJob()
             }
@@ -994,7 +1003,7 @@ class MonitorVer @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
-                            VideoQuality.SSD.value->{
+                            VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
@@ -1023,7 +1032,7 @@ class MonitorVer @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
-                            VideoQuality.SSD.value->{
+                            VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
@@ -1173,5 +1182,13 @@ class MonitorVer @JvmOverloads constructor(
 
     fun interface OnMonitorVideoQualityCallback {
         fun onMonitorVideoQuality(quality: VideoQuality)
+    }
+
+    override fun onListenerStatus(status: Boolean) {
+        onAudioListener?.onListenerStatus(status)
+    }
+
+    override fun onTalkStatus(status: Boolean) {
+        onAudioListener?.onTalkStatus(status)
     }
 }
