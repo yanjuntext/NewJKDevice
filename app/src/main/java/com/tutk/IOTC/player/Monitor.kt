@@ -131,6 +131,9 @@ class Monitor @JvmOverloads constructor(
 
     var onAudioListener:OnAudioListener? = null
 
+    //surface 是否回调了destroy
+    private var surfaceIsDestroy = true
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -254,7 +257,11 @@ class Monitor @JvmOverloads constructor(
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
         Liotc.d("Monitor", "attachCamera")
         Liotc.d("Monitor", "renderJob--------->attachCamera")
-//        renderJob()
+        Liotc.d("Monitor","renderJob  surfaceIsDestroy=$surfaceIsDestroy")
+        if(!surfaceIsDestroy){
+            Liotc.d("Monitor","renderJob  surfaceIsDestroy=$surfaceIsDestroy ---------")
+            renderJob(holder)
+        }
     }
 
 
@@ -779,6 +786,7 @@ class Monitor @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        surfaceIsDestroy = false
         canDraw = true
         Liotc.d("Monitor", "surfaceDestroyed surfaceCreated")
     }
@@ -814,6 +822,7 @@ class Monitor @JvmOverloads constructor(
             Liotc.d("Monitor", "_setFullScreen surfaceChanged[$isFullScreen]")
 
         }
+        surfaceIsDestroy = false
         canDraw = true
         Liotc.d("Monitor", "surfaceDestroyed surfaceChanged")
         renderJob(holder)
@@ -822,6 +831,7 @@ class Monitor @JvmOverloads constructor(
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Liotc.d("Monitor", "surfaceDestroyed 1")
 
+        surfaceIsDestroy = true
         canDraw = false
         isRunning = false
         mMonitorThread?.stopThread()
