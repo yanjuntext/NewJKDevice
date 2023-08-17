@@ -8,4 +8,6 @@ package com.tutk.IOTC.listener
 interface OnAudioListener {
     fun onListenerStatus(status: Boolean)
     fun onTalkStatus(status: Boolean)
+    fun onAudioRecordVolume(volume:Double)
 }
+

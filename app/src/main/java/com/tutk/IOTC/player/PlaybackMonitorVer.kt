@@ -151,8 +151,8 @@ class PlaybackMonitorVer @JvmOverloads constructor(
         mGestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
-                    e1: MotionEvent?,
-                    e2: MotionEvent?,
+                    e1: MotionEvent,
+                    e2: MotionEvent,
                     velocityX: Float,
                     velocityY: Float
                 ): Boolean {
@@ -164,7 +164,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
                 }
 
                 //双击
-                override fun onDoubleTap(e: MotionEvent?): Boolean {
+                override fun onDoubleTap(e: MotionEvent): Boolean {
                     Liotc.d("Monitor", "onDoubleTap")
                     if (mRectCanvas.left > 0 || mRectCanvas.right < nScreenWidth || mRectCanvas.top > 0 || mRectCanvas.bottom < nScreenHeight) {
                         _setFullScreen()
@@ -443,7 +443,10 @@ class PlaybackMonitorVer @JvmOverloads constructor(
                 }
             }
         }
-        mGestureDetector?.onTouchEvent(event)
+        event?.let { evt->
+            mGestureDetector?.onTouchEvent(evt)
+        }
+//        mGestureDetector?.onTouchEvent(event)
         return true
     }
 
@@ -1012,6 +1015,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
                         stopPlayTime()
                         stop()
                     }
+                    else->{}
                 }
             }
         }

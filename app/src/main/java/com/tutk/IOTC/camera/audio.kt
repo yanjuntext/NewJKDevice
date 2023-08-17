@@ -37,6 +37,8 @@ class RecvAudioJob(
     //上次语音格式
     private var mLastVoiceType: VoiceType? = null
 
+    private var soundStatus:Boolean = false
+
 
     private fun isSupportAudio(codeId: Int) =
         codeId == AVFrame.MEDIA_CODEC_AUDIO_MP3
@@ -71,6 +73,7 @@ class RecvAudioJob(
             d("unInitAudioTrack  111")
             AudioTrackHelper.unInitAudioTrack()
         } else {
+            d("zrtAudioPlayer unInitAudioTrack")
             avChannel?.unInitAudioPlayer()
             avChannel?.releaseAcousticEchoCanceler()
         }
@@ -81,10 +84,12 @@ class RecvAudioJob(
 
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow<Int> {
+                avChannel?.refreshSid()
                 while (isRunning && isActive && ((avChannel?.SID
                         ?: -1) < 0 || (avChannel?.mAvIndex
                         ?: -1) < 0 || avChannel?.SID == IOTC_CONNECT_ING)
                 ) {
+                    avChannel?.refreshSid()
                     delay(100)
                 }
                 if (!isActive) {
@@ -107,10 +112,11 @@ class RecvAudioJob(
 
                 val decodeOutPutBuffer = ByteArray(65535)
 
-
+                avChannel?.refreshSid()
                 if (isRunning && isActive && (avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex
                         ?: -1) >= 0
                 ) {
+                    avChannel?.refreshSid()
                     d("IOTYPE_USER_IPCAM_AUDIOSTART [${avChannel?.mAvIndex}]")
                     avChannel?.IOCtrlQueue?.Enqueue(
                         avChannel.mAvIndex,
@@ -119,14 +125,19 @@ class RecvAudioJob(
 //                        Packet.intToByteArray_Little(0)
                     )
                 }
-
-                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
-                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
+                avChannel?.refreshSid()
+//                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
+                while (isRunning && isActive && (avChannel?.isAudioPlaying() == true || LocalRecordHelper.recording)) {
+//                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
+                    while ((avChannel?.isAudioPlaying() == true || LocalRecordHelper.recording) && isActive && isRunning) {
+                        avChannel?.refreshSid()
                         if ((avChannel?.SID ?: -1) >= 0 && (avChannel?.mAvIndex ?: -1) >= 0) {
                             d("get audio [${avChannel?.mAvIndex}]")
 
-                            if(avChannel?.audioRecordStatus == true){
+                            if (avChannel?.audioPlayStatus == true) {
                                 iavChannelStatus?.onListenerStatus(true)
+                            }else{
+                                iavChannelStatus?.onListenerStatus(false)
                             }
 
                             nReadSize = AVAPIs.avRecvAudioData(
@@ -161,14 +172,19 @@ class RecvAudioJob(
 //                                        mCodecId = AVFrame.MEDIA_CODEC_AUDIO_PCM
 //                                    }
 
-                                    if (mLastVoiceType != avChannel?.mVoiceType
-                                        || ((avChannel?.mVoiceType == VoiceType.ONE_WAY_VOICE || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && mCodecId != AVFrame.MEDIA_CODEC_AUDIO_PCM)) && AudioTrackHelper.audioTrackIsEmpty() && avChannel.audioPlayStatus)
-                                        || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM && avChannel.audioPlayerIsEmpty() && avChannel.audioPlayStatus)
+                                    if ((mLastVoiceType != avChannel?.mVoiceType && mLastVoiceType != null)
+                                        || ((avChannel?.mVoiceType == VoiceType.ONE_WAY_VOICE || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && mCodecId != AVFrame.MEDIA_CODEC_AUDIO_PCM))
+                                                && AudioTrackHelper.audioTrackIsEmpty() && avChannel.audioPlayStatus)
+                                        || (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE
+                                                && mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM
+                                                && avChannel.audioPlayerIsEmpty()
+                                                && avChannel.audioPlayStatus)
                                     ) {
                                         mFirst = true
                                         mInitAudio = false
                                         d("chang voiceType 1")
                                         //释放双向语音资源
+                                        d("zrtAudioPlayer unInitAudioTrack 2222")
                                         avChannel?.unInitAudioPlayer()
                                         d("chang voiceType 2")
                                         //释放当向语音播放资源
@@ -255,10 +271,12 @@ class RecvAudioJob(
                                             //PCM 双向语音使用的是君正
                                             if (avChannel?.audioPlayStatus == true) {
                                                 if (avChannel.mAudioPlayer?.isSoundOn != true) {
+                                                    d("sound on")
                                                     avChannel.mAudioPlayer?.soundOn()
                                                 }
                                             } else {
                                                 if (avChannel?.mAudioPlayer?.isSoundOn == true) {
+                                                    d("sound off")
                                                     avChannel.mAudioPlayer?.soundOff()
                                                 }
                                             }
@@ -273,6 +291,7 @@ class RecvAudioJob(
 
                                                 if (avChannel?.audioPlayStatus == true) {
                                                     if (isTwoWayVoiceType()) {
+                                                        d("putPlayData")
                                                         avChannel?.putPlayData(
                                                             values,
                                                             nReadSize,
@@ -391,22 +410,32 @@ class RecvAudioJob(
                 }
                 d("stop 1")
                 avChannel?.mAvIndex?.let { index ->
-                    d("avClientCleanAudioBuf [$index]")
-                    AVAPIs.avClientCleanAudioBuf(index)
-                    avChannel.IOCtrlQueue?.Enqueue(
-                        index,
-                        AVIOCTRLDEFs.IOTYPE_USER_IPCAM_AUDIOSTOP,
-                        0.littleByteArray()
+
+//                    if(isTwoWayVoiceType() &&  avChannel?.audioRecordStatus != true){
+//
+//                    }else{
+                        d("avClientCleanAudioBuf [$index]")
+                        AVAPIs.avClientCleanAudioBuf(index)
+                        avChannel.IOCtrlQueue?.Enqueue(
+                            index,
+                            AVIOCTRLDEFs.IOTYPE_USER_IPCAM_AUDIOSTOP,
+                            0.littleByteArray()
 //                        Packet.intToByteArray_Little(0)
-                    )
-                    d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
+                        )
+                        d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
+//                    }
+
                 }
                 d("stop 2 ")
                 iavChannelStatus?.onListenerStatus(false)
                 //关闭双向语音
                 avChannel?.mAudioPlayer?.soundOff()
-                //释放双向语音资源
-                avChannel?.unInitAudioPlayer()
+                if(isTwoWayVoiceType() && avChannel?.audioRecordStatus != true){
+                    d("zrtAudioPlayer unInitAudioTrack  333")
+                    //释放双向语音资源
+                    avChannel?.unInitAudioPlayer()
+                }
+
 
                 d("stop 3")
                 //释放单向语音播放资源
@@ -432,6 +461,10 @@ class RecvAudioJob(
         iavChannelStatus?.onListenerStatus(false)
     }
 
+    fun setTwoWayVoiceStatus(status:Boolean){
+        soundStatus = status
+    }
+
     private fun d(msg: String) {
         Liotc.d(TAG, "$msg   uid[${avChannel?.uid}]")
     }
@@ -445,6 +478,8 @@ class RecvAudioJob(
     }
 
 }
+
+internal data class SendAudioEmitInfo(val type: Int? = null, var volume: Double = 0.0)
 
 /**音频发送*/
 class SendAudioJob(
@@ -513,6 +548,7 @@ class SendAudioJob(
             d("unInitAudioTrack  444")
             AudioTrackHelper.unInitAudioTrack()
         } else {
+            d("zrtAudioPlayer unInitAudioTrack  4444")
             avChannel?.unInitAudioPlayer()
             avChannel?.releaseAcousticEchoCanceler()
         }
@@ -523,16 +559,18 @@ class SendAudioJob(
         }
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
-
+                avChannel?.refreshSid()
                 while (isRunning && isActive
                     && ((avChannel?.SID ?: -1) < 0
                             || (avChannel?.mAvIndex ?: -1) < 0
                             || avChannel?.SID == IOTC_CONNECT_ING)
                 ) {
+                    avChannel?.refreshSid()
                     delay(100)
                 }
 
                 while (isRunning && isActive) {
+                    avChannel?.refreshSid()
                     d("send audio session sid[${avChannel?.SID}]")
                     //获取空闲的信道
                     mSendAudioSessionIndex =
@@ -547,6 +585,7 @@ class SendAudioJob(
                     }
 
                 }
+                ensureActive()
                 d("11111")
                 if (!isActive) {
                     return@flow
@@ -601,7 +640,7 @@ class SendAudioJob(
                 if (isActive && isRunning) {
                     if (isRunning && isActive) {
                         d("emit 1")
-                        emit(1)
+                        emit(SendAudioEmitInfo(type = 1))
                     }
                     //初始话编码器
                     avChannel?.mAudioCodec?.let { codeId ->
@@ -617,12 +656,14 @@ class SendAudioJob(
 
                     val flag =
                         (AVFrame.AUDIO_SAMPLE_8K shl 2) or (AVFrame.AUDIO_DATABITS_16 shl 1) or AVFrame.AUDIO_CHANNEL_MONO
+                    var lastEmptyTime = 0L
                     while (isRunning && isActive && mSendAudioChannelIndex >= 0) {
 
                         while (avChannel?.audioRecordStatus == true && isActive) {
                             //切换了语音类型 例如：单向语音变双向语音 或者 双向语音变单向语音
                             if (mLastVoiceType != avChannel?.mVoiceType && mLastVoiceType != null) {
                                 //释放双向语音资源
+                                d("zrtAudioPlayer unInitAudioTrack  000")
                                 avChannel?.unInitAudioPlayer()
                                 d("unInitAudioTrack  000")
                                 //释放当向语音播放资源
@@ -630,32 +671,48 @@ class SendAudioJob(
                                 AudioTrackHelper.unInitAudioRecord()
                                 mLastVoiceType = avChannel?.mVoiceType
                             }
-                            if(mLastVoiceType == null){
+                            if (mLastVoiceType == null) {
                                 mLastVoiceType = avChannel?.mVoiceType
                             }
 
-                            if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+                            if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE
+                                && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
                                 avChannel.initAudioPlayer(mContext?.get())
 //                                d("TWO_WAY_VOICE isAudioRecord[${avChannel.mAudioPlayer?.isAudioRecord}],codec[${avChannel.mAudioCodec}]")
 
                                 if (avChannel.audioRecordStatus && avChannel.mAudioPlayer?.isAudioRecord != true) {
+                                    d("zrtAudioPlayer audioplayer status= resumeAudioRecord")
                                     avChannel.mAudioPlayer?.resumeAudioRecord()
                                 } else if (!avChannel.audioRecordStatus) {
 
                                 }
-                                //如果是双向语音
-                                val filterData = avChannel.mAudioPlayer?.filterData
 
-                                filterData?.let { takeAll ->
-                                    when (avChannel.mAudioCodec) {
-                                        AVFrame.MEDIA_CODEC_AUDIO_G711A -> {
-                                            val length =
-                                                AudioProcessHelper.encode(takeAll, outG711Buf)
 
-                                            val frameInfo = getAudioInfo(
-                                                AVFrame.MEDIA_CODEC_AUDIO_G711A.toShort(),
-                                                flag.toByte()
-                                            )
+                                if(!avChannel.audioRecordStatus){
+                                    //当关掉录音的时候，需要发送空数据，否则新的设备5S后会主动断开通话通道
+                                    val frameInfo = getAudioInfo(
+                                        AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
+                                        flag.toByte()
+                                    )
+                                    val result = AVAPIs.avSendAudioData(
+                                        mSendAudioChannelIndex, ByteArray(800),
+                                        800, frameInfo, 16
+                                    )
+                                }else{
+                                    //如果是双向语音
+                                    val filterData = avChannel.mAudioPlayer?.filterData
+                                    emit(SendAudioEmitInfo(volume = avChannel.audioRecordVolume))
+                                    filterData?.let { takeAll ->
+                                        d("audioplayer status=${avChannel.mAudioPlayer?.isAudioRecord}  data=${takeAll.size}")
+                                        when (avChannel.mAudioCodec) {
+                                            AVFrame.MEDIA_CODEC_AUDIO_G711A -> {
+                                                val length =
+                                                    AudioProcessHelper.encode(takeAll, outG711Buf)
+
+                                                val frameInfo = getAudioInfo(
+                                                    AVFrame.MEDIA_CODEC_AUDIO_G711A.toShort(),
+                                                    flag.toByte()
+                                                )
 
 //                                                AVIOCTRLDEFs.SFrameInfo.parseContent(
 //                                                AVFrame.MEDIA_CODEC_AUDIO_G711A.toShort(),
@@ -665,19 +722,19 @@ class SendAudioJob(
 //                                                System.currentTimeMillis().toInt()
 //                                            )
 
-                                            AVAPIs.avSendAudioData(
-                                                mSendAudioChannelIndex,
-                                                outG711Buf,
-                                                length,
-                                                frameInfo,
-                                                16
-                                            )
-                                        }
-                                        else -> {
-                                            val frameInfo = getAudioInfo(
-                                                AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
-                                                flag.toByte()
-                                            )
+                                                AVAPIs.avSendAudioData(
+                                                    mSendAudioChannelIndex,
+                                                    outG711Buf,
+                                                    length,
+                                                    frameInfo,
+                                                    16
+                                                )
+                                            }
+                                            else -> {
+                                                val frameInfo = getAudioInfo(
+                                                    AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
+                                                    flag.toByte()
+                                                )
 //                                                AVIOCTRLDEFs.SFrameInfo.parseContent(
 //                                                AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
 //                                                flag.toByte(),
@@ -685,16 +742,21 @@ class SendAudioJob(
 //                                                0,
 //                                                System.currentTimeMillis().toInt()
 //                                            )
-                                            AVAPIs.avSendAudioData(
-                                                mSendAudioChannelIndex, takeAll,
-                                                takeAll.size, frameInfo, 16
-                                            )
 
+//                                            AVAPIs.avSendAudioData(mSendAudioChannelIndex,ByteArray(800),800,frameInfo,16)
+                                                val result = AVAPIs.avSendAudioData(
+                                                    mSendAudioChannelIndex, takeAll,
+                                                    takeAll.size, frameInfo, 16
+                                                )
+                                                d("audioplayer status=${avChannel.mAudioPlayer?.isAudioRecord}  data=${takeAll.size} avSendAudioData=${result}")
+                                            }
                                         }
                                     }
                                 }
+
                             } else if (avChannel.mVoiceType == VoiceType.ONE_WAY_VOICE
-                                || (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec != AVFrame.MEDIA_CODEC_AUDIO_PCM)
+                                || (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE
+                                        && avChannel.mAudioCodec != AVFrame.MEDIA_CODEC_AUDIO_PCM)
                             ) {
 
                                 if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE) {
@@ -708,7 +770,7 @@ class SendAudioJob(
                                 AudioTrackHelper.resumeAudioRecord()
                                 d("ONE_WAY_VOICE [${avChannel.mAudioCodec}]")
 
-                                if(avChannel?.audioRecordStatus == true){
+                                if (avChannel?.audioRecordStatus == true) {
                                     iavChannelStatus?.onTalkStatus(true)
                                 }
 
@@ -768,8 +830,24 @@ class SendAudioJob(
                         if (avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
                             //双向语音
                             if (avChannel.mAudioPlayer?.isAudioRecord == true) {
+                                d("zrtAudioPlayer audioplayer status= pauseAudioRecord")
                                 avChannel.mAudioPlayer?.pauseAudioRecord()
                             }
+                            if(System.currentTimeMillis() - lastEmptyTime >= 2000){
+                                lastEmptyTime = System.currentTimeMillis();
+                                //当关掉录音的时候，需要发送空数据，否则新的设备5S后会主动断开通话通道
+                                val frameInfo = getAudioInfo(
+                                    AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
+                                    flag.toByte()
+                                )
+                                val result = AVAPIs.avSendAudioData(
+                                    mSendAudioChannelIndex, ByteArray(800),
+                                    800, frameInfo, 16
+                                )
+                                d("zrtAudioPlayer audioplayer status= pauseAudioRecord send empty result=$result")
+                            }
+
+                            d("zrtAudioPlayer audioplayer status= pauseAudioRecord ")
                         } else {
                             //单向语音
                             isRunning = false
@@ -803,35 +881,62 @@ class SendAudioJob(
                 //关闭双向语音音频
                 avChannel?.mAudioPlayer?.pauseAudioRecord()
                 d("sendAudio stop 4")
-                if (mSendAudioChannelIndex >= 0) {
-                    AVAPIs.avServStop(mSendAudioChannelIndex)
-                }
+                if(isTwoWayVoiceType()){
+                    if (mSendAudioChannelIndex >= 0) {
+                        AVAPIs.avServExit(avChannel?.SID?:-1,mSendAudioChannelIndex)
+//                    AVAPIs.avServStop(mSendAudioChannelIndex)
+                    }
+                    if (mSendAudioSessionIndex >= 0) {
+                        avChannel?.SID?.let { sid ->
+                            if (sid >= 0 && mSendAudioChannelIndex >= 0) {
+                                AVAPIs.avServExit(sid, mSendAudioChannelIndex)
+                                avChannel.IOCtrlQueue?.Enqueue(
+                                    AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SPEAKERSTOP,
+                                    startAudioInfo(mSendAudioChannelIndex)
+//                            AVIOCTRLDEFs.SMsgAVIoctrlAVStream.parseContent(mSendAudioChannelIndex)
+                                )
+                            }
+                        }
 
-                d("sendAudio stop 5")
-                if (mSendAudioSessionIndex >= 0) {
-                    avChannel?.SID?.let { sid ->
-                        IOTCAPIs.IOTC_Session_Channel_OFF(sid, mSendAudioSessionIndex)
+                    }
+                }else{
+                    if (mSendAudioChannelIndex >= 0) {
+//                        AVAPIs.avServExit(avChannel?.SID?:-1,mSendAudioChannelIndex)
+                       AVAPIs.avServStop(mSendAudioChannelIndex)
+                    }
+
+                    d("sendAudio stop 5")
+                    if (mSendAudioSessionIndex >= 0) {
+                        avChannel?.SID?.let { sid ->
+
+                            IOTCAPIs.IOTC_Session_Channel_OFF(sid, mSendAudioSessionIndex)
+                        }
                     }
                 }
+
 
                 mSendAudioChannelIndex = -1
                 mSendAudioSessionIndex = -1
                 d("sendAudio stop 6")
 
                 if (isActive) {
-                    emit(0)
+                    emit(SendAudioEmitInfo(type = 0))
                 }
                 d("stop sendAudio")
             }.flowOn(Dispatchers.IO)
                 .collect {
-                    if (it == 1) {
+                    if (it.type == 1) {
                         iavChannelStatus?.onAVChannelReceiveExtraInfo(
                             avChannel?.mChannel ?: -1,
                             AVIOCTRLDEFs.IOTYPE_USER_GET_ERROR_CODE_SHENDAUDIO_START_TIME,
                             AVIOCTRLDEFs.startSOUND_END,
                             0
                         )
+                    } else if (it.type == null) {
+                        iavChannelStatus?.onAudioRecordVolume(it.volume)
                     }
+
+
                 }
         }
     }

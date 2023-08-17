@@ -1,6 +1,7 @@
 package com.tutk.webtrc;
 
 import android.content.Context;
+import android.media.AudioRecord;
 
 import com.ingenic.api.AudioFrame;
 import com.ingenic.api.Frequency;
@@ -12,10 +13,13 @@ import com.ingenic.api.RecodeAudioDataListener;
  * @CreateDate: 2022/3/1
  * @Description: 双向语音
  */
-public class MyAudioPlayer {
+public class MyAudioPlayer implements a.OnRecordVolumeListener {
     private boolean enableSystemAEC;
     private boolean mHasInit;
     private a mPlayer;
+    private OnAudioPlayerVolumeChangeListener listener;
+
+
 
     private MyAudioPlayer() {
         this.enableSystemAEC = true;
@@ -43,6 +47,7 @@ public class MyAudioPlayer {
         } else {
             this.mHasInit = true;
             this.mPlayer = new a(var1.getApplicationContext(), var2, var3, var4);
+            this.mPlayer.setOnRecordVolumeListener(this);
             return this;
         }
     }
@@ -135,10 +140,37 @@ public class MyAudioPlayer {
         return this;
     }
 
+    @Override
+    public void onVolume(double volume) {
+        try {
+            if(listener != null){
+                listener.onVolumeChange(volume);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+    }
+
     private static class MyAudioPlayerHolder {
         private static MyAudioPlayer instance = new MyAudioPlayer();
 
         private MyAudioPlayerHolder() {
         }
+    }
+
+    public AudioRecord getAudioRecord(){
+        if(mPlayer != null){
+            return mPlayer.getAudioRecord();
+        }
+        return null;
+    }
+
+    public void setOnAudioPlayerVolumeChangeListener(OnAudioPlayerVolumeChangeListener listener){
+        this.listener = listener;
+    }
+
+    public interface OnAudioPlayerVolumeChangeListener{
+        void onVolumeChange(double volume);
     }
 }

@@ -376,3 +376,11 @@ data class TOsdGetStatus(val status: Boolean)
 data class TResetDevice(val result: Int) {
     fun isSuccess() = result == 0
 }
+/**
+ *  [AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_RESP]
+ * 低功耗设备模式切换
+ */
+data class TNosLeep(val result: Int,val type:Int,val status: Boolean){
+    fun isGet() = type == 0 && isSuccess()
+    fun isSuccess() = result == 0
+}

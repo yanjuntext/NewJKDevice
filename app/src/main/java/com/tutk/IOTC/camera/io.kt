@@ -1,12 +1,11 @@
 package com.tutk.IOTC.camera
 
-import android.os.Bundle
 import com.tutk.IOTC.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlin.random.Random
 
 /**
  * @Author: wangyj
@@ -21,7 +20,8 @@ class RecvInfo(val type: Int, val data: ByteArray?)
 class StartJob(
     val avChannel: AVChannel?,
     var isRunning: Boolean = false,
-    var iavChannelStatus: IAVChannelListener?
+    var iavChannelStatus: IAVChannelListener?,
+    var delayTime: Long = 500
 ) {
     private val TAG = "StartJob"
     private var runJob: Job? = null
@@ -39,17 +39,34 @@ class StartJob(
             d(TAG, "StartJob is Running,not rerun")
             return
         }
+        val random = Random.nextInt(200)
         isRunning = true
         isStoped = false
+        runJob?.cancel()
+        runJob = null
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
                 while (isActive) {
+                    delay(delayTime)
+                    ensureActive()
                     var connectingIndex = 0
                     var offlineIndex = 0
                     while (isRunning && isActive) {
-                        if (mSID == IOTC_CONNECT_ING) {
+                        ensureActive()
+                        avChannel?.refreshSid()
+//                        if(mSID < 0){
+//                            delay(1000L)
+//                            continue
+//                        }
+//                        ensureActive()
+//                        avChannel?.refreshSid()
+                        if (mSID == IOTC_CONNECT_ING || mSID < 0) {
+                            ensureActive()
                             connectingIndex++
-                            d(TAG, "StartJob mSID[$mSID],connectingIndex = [${connectingIndex}]")
+                            d(
+                                TAG,
+                                "StartJob mSID[$mSID],connectingIndex = [${connectingIndex}] random=$random"
+                            )
                             if (connectingIndex > 50) {
                                 emit(Camera.CONNECTION_STATE_CONNECT_FAILED)
 //                                break
@@ -58,7 +75,7 @@ class StartJob(
                             delay(1000L)
                             continue
                         }
-
+                        ensureActive()
                         if (mSID < 0) {
                             d(TAG, "StartJob mSID[$mSID],[${offlineIndex}]")
                             offlineIndex++
@@ -70,7 +87,7 @@ class StartJob(
                             delay(1000L)
                             continue
                         }
-
+                        ensureActive()
                         val nServType = intArrayOf(-1)
                         val mReSend = IntArray(1)
 
@@ -85,7 +102,7 @@ class StartJob(
                                 mReSend
                             )
                             val servType = nServType[0].toLong()
-
+                            ensureActive()
                             d(TAG, "avIndex=[$avIndex],servType=[$servType]")
 
                             if (avIndex == AVAPIs.AV_ER_NOT_INITIALIZED) {
@@ -115,7 +132,15 @@ class StartJob(
                             ) {
                                 emit(Camera.CONNECTION_STATE_TIMEOUT)
                             } else if (avIndex == AVAPIs.AV_ER_WRONG_VIEWACCorPWD) {
+                                d(
+                                    TAG,
+                                    "password error acc=${avChannel.mViewAcc}  pwd=${avChannel.mViewPwd}"
+                                )
                                 emit(Camera.CONNECTION_STATE_WRONG_PASSWORD)
+                                return@let -1
+                            } else if (avIndex == AVAPIs.AV_ER_IOTC_CHANNEL_IN_USED) {
+                                emit(Camera.CONNECTION_STATE_RECONENCT)
+                                isRunning = false
                                 return@let -1
                             } else {
                                 return@let -1
@@ -126,6 +151,7 @@ class StartJob(
                             break
                         }
                     }
+                    isRunning = false
                     isRunning = false
 
                     if (isStoped) {
@@ -148,6 +174,16 @@ class StartJob(
     fun stop() {
         isRunning = false
         isStoped = true
+        runJob?.cancel()
+        runJob = null
+        d(TAG,"stop---------")
+        avChannel?.let { avChannel ->
+            if (mSID >= 0) {
+                AVAPIs.avClientExit(mSID, avChannel.mChannel)
+            }
+        }
+
+
     }
 
 
@@ -188,16 +224,20 @@ class RecvIOJob(
             e(TAG, "runJob is Running ")
             return
         }
-
-        isRunning = true
+        stop()
 
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
+                isRunning = true
+                avChannel?.refreshSid()
+                ensureActive()
                 while (isRunning && isActive
                     && ((avChannel?.SID ?: -1) < 0
                             || (avChannel?.mAvIndex ?: -1) < 0
                             || avChannel?.SID == IOTC_CONNECT_ING)
                 ) {
+                    ensureActive()
+                    avChannel?.refreshSid()
                     delay(1000L)
                 }
 
@@ -207,11 +247,13 @@ class RecvIOJob(
 //                    delay(1000L)
 //                }
                 while (isRunning && isActive) {
+                    ensureActive()
+                    avChannel?.refreshSid()
                     avChannel?.let { avChannel ->
                         if (mSID >= 0 && (avChannel.mAvIndex >= 0)) {
                             val ioCtrlType = IntArray(1)
                             val ioCtrlBuf = ByteArray(1024)
-
+                            ensureActive()
                             val nRet = AVAPIs.avRecvIOCtrl(
                                 avChannel.mAvIndex,
                                 ioCtrlType,
@@ -219,6 +261,7 @@ class RecvIOJob(
                                 ioCtrlBuf.size,
                                 0
                             )
+                            ensureActive()
                             d(TAG, "AVAPIs.avRecvIOCtrl nRet=[$nRet]")
                             if (nRet >= 0) {
                                 val data = ByteArray(nRet)
@@ -239,15 +282,16 @@ class RecvIOJob(
                                 } else if (ioCtrlType[0] == AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP) {
                                     d(TAG, "IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP")
                                 }
-                                d("Monitor","onAVChannelRecv emit -----")
+                                d("Monitor", "onAVChannelRecv emit -----")
 //                                emit(RecvInfo(ioCtrlType[0], data))
 //                                iavChannelStatus?.onAVChannelRecv(avChannel.mChannel, ioCtrlType[0], data)
-                                emit(RecvInfo(ioCtrlType[0],data))
+                                ensureActive()
+                                emit(RecvInfo(ioCtrlType[0], data))
 //                                emit(Bundle().apply {
 //                                    putInt("type",ioCtrlType[0])
 //                                    putByteArray("data",data)
 //                                })
-                                d("Monitor","onAVChannelRecv emit +++++")
+                                d("Monitor", "onAVChannelRecv emit +++++")
                             } else {
                                 delay(100)
                             }
@@ -256,12 +300,19 @@ class RecvIOJob(
                 }
             }.flowOn(Dispatchers.IO)
                 .catch {
-                    d("Monitor","onAVChannelRecv emit ----- error=${it.message}")
+                    d("Monitor", "onAVChannelRecv emit ----- error=${it.message}")
                 }
                 .collect {
-                    d("Monitor","onAVChannelRecv emit iavChannelStatus=${iavChannelStatus == null}  -${it is RecvInfo}")
-                    if(it is RecvInfo){
-                        iavChannelStatus?.onAVChannelRecv(avChannel?.mChannel ?: -1, it.type, it.data)
+                    d(
+                        "Monitor",
+                        "onAVChannelRecv emit iavChannelStatus=${iavChannelStatus == null}  -${it is RecvInfo}"
+                    )
+                    if (it is RecvInfo) {
+                        iavChannelStatus?.onAVChannelRecv(
+                            avChannel?.mChannel ?: -1,
+                            it.type,
+                            it.data
+                        )
                     }
                 }
         }
@@ -271,6 +322,7 @@ class RecvIOJob(
         isRunning = false
         runJob?.cancel()
         runJob = null
+        d(TAG,"stop---------")
     }
 
 
@@ -311,17 +363,23 @@ class SendIOJob(
         }
         isRunning = true
         isStoped = false
+        runJob?.cancel()
+        runJob = null
         runJob = GlobalScope.launch(Dispatchers.IO) {
+            isRunning = true
+            isStoped = false
             while (isActive) {
+                ensureActive()
+                avChannel?.refreshSid()
                 while (isRunning && isActive
                     && (mSID < 0 || (avChannel?.mAvIndex ?: -1) < 0)
                 ) {
+                    ensureActive()
+                    avChannel?.refreshSid()
                     delay(1000L)
                 }
-
-                if (isRunning && isActive && mSID >= 0 && (avChannel?.mAvIndex
-                        ?: -1) >= 0
-                ) {
+                avChannel?.refreshSid()
+                if (isRunning && isActive && mSID >= 0 && (avChannel?.mAvIndex ?: -1) >= 0) {
                     val avIndex = (avChannel?.mAvIndex ?: -1)
                     d(TAG, "avSendIOCtrl avIndex[$avIndex]")
                     AVAPIs.avSendIOCtrl(
@@ -332,8 +390,10 @@ class SendIOJob(
                     )
 
                 }
-
+                avChannel?.refreshSid()
                 while (isRunning && isActive) {
+                    ensureActive()
+                    avChannel?.refreshSid()
                     val avIndex = avChannel?.mAvIndex ?: -1
                     if (mSID >= 0 && avIndex >= 0 && (avChannel?.IOCtrlQueue?.isEmpty() == false
                                 || avChannel?.IOCtrlFastQueue?.isEmpty() == false)
@@ -405,6 +465,13 @@ class SendIOJob(
     fun stop() {
         isRunning = false
         isStoped = true
+        runJob?.cancel()
+        runJob = null
+        d(TAG,"stop---------")
+        avChannel?.let { avChannel ->
+            AVAPIs.avSendIOCtrlExit(avChannel.mAvIndex)
+        }
+
     }
 
 

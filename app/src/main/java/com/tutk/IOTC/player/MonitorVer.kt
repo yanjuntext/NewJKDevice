@@ -148,8 +148,8 @@ class MonitorVer @JvmOverloads constructor(
         mGestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
-                    e1: MotionEvent?,
-                    e2: MotionEvent?,
+                    e1: MotionEvent,
+                    e2: MotionEvent,
                     velocityX: Float,
                     velocityY: Float
                 ): Boolean {
@@ -186,7 +186,7 @@ class MonitorVer @JvmOverloads constructor(
                 }
 
                 //双击
-                override fun onDoubleTap(e: MotionEvent?): Boolean {
+                override fun onDoubleTap(e: MotionEvent): Boolean {
                     Liotc.d("Monitor", "onDoubleTap")
                     if (mRectCanvas.left > mRectMonitor.left || mRectCanvas.right < mRectMonitor.right || mRectCanvas.top > mRectMonitor.top || mRectCanvas.bottom < mRectMonitor.bottom) {
                         _setFullScreen()
@@ -678,7 +678,9 @@ class MonitorVer @JvmOverloads constructor(
                 }
             }
         }
-        mGestureDetector?.onTouchEvent(event)
+        event?.let { evt->
+            mGestureDetector?.onTouchEvent(evt)
+        }
         return true
     }
 
@@ -1190,5 +1192,9 @@ class MonitorVer @JvmOverloads constructor(
 
     override fun onTalkStatus(status: Boolean) {
         onAudioListener?.onTalkStatus(status)
+    }
+
+    override fun onAudioRecordVolume(volume: Double) {
+        onAudioListener?.onAudioRecordVolume(volume)
     }
 }

@@ -7,17 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.*
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
+import android.os.*
 import android.provider.MediaStore
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
 import com.tutk.IOTC.*
 import com.tutk.IOTC.Camera
 import com.tutk.IOTC.listener.*
@@ -48,6 +45,9 @@ class PlaybackMonitor @JvmOverloads constructor(
     defStyle: Int = 0
 ) : SurfaceView(context, attr, defStyle), LifecycleObserver, SurfaceHolder.Callback, OnIOCallback,
     OnSessionChannelCallback, OnFrameCallback {
+
+    //播放新的视频
+    private val OPT_RESTART_NEW_EVENT = 2134
 
     private val TAG = PlaybackMonitor::class.java.simpleName
 
@@ -102,7 +102,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     private var mBitmapHeight = 0
 
 
-    private var isRunning = true
+    private var isRunning = false
 
 
     private var mOnClickListener: OnClickListener? = null
@@ -116,6 +116,8 @@ class PlaybackMonitor @JvmOverloads constructor(
     var isRecording = false
 
     private var mRecordEvent: TEvent? = null
+    private var mRecordDuration: Int = 0
+    private var mRecordIndex: Int = 0
 
     private var mPlaybackStatus: PlaybackStatus? = null
 
@@ -139,7 +141,15 @@ class PlaybackMonitor @JvmOverloads constructor(
     private var mSeekTime = 0
 
     private var canDraw = false
-    private var mMonitorThread:MonitorThread? = null
+    private var mMonitorThread: MonitorThread? = null
+
+    /**是否使用设备端返回的播放进度*/
+    var userDeviceStatusBarTime = false
+    private var firstStatusBarTime = -1L
+    private var mCurrentDeviceStatusBar = 0
+    /**是否是新的录像方式*/
+    var meoofRecord:Boolean = false
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -148,21 +158,21 @@ class PlaybackMonitor @JvmOverloads constructor(
         mGestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
-                    e1: MotionEvent?,
-                    e2: MotionEvent?,
+                    e1: MotionEvent,
+                    e2: MotionEvent,
                     velocityX: Float,
                     velocityY: Float
                 ): Boolean {
-                    Liotc.d("Monitor", "onFling 1")
+                    Liotc.d("PlaybackMonitor", "onFling 1")
                     if (mRectCanvas.left != vLeft || mRectCanvas.top != vTop || mRectCanvas.right != vRight || mRectCanvas.bottom != vBottom)
                         return false
-                    Liotc.d("Monitor", "onFling 2")
+                    Liotc.d("PlaybackMonitor", "onFling 2")
                     return false
                 }
 
                 //双击
-                override fun onDoubleTap(e: MotionEvent?): Boolean {
-                    Liotc.d("Monitor", "onDoubleTap")
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    Liotc.d("PlaybackMonitor", "onDoubleTap")
                     if (mRectCanvas.left > 0 || mRectCanvas.right < nScreenWidth || mRectCanvas.top > 0 || mRectCanvas.bottom < nScreenHeight) {
                         _setFullScreen()
                     } else {
@@ -173,11 +183,48 @@ class PlaybackMonitor @JvmOverloads constructor(
             })
     }
 
+    //重新播放或者播放新的
+    private var isRestartPlayback = false
+    private var newRecordEvent: TEvent? = null
+    private var newRecordEventDuration: Int = 0
+    private var newRecordEventIndex: Int = 0
+
+    private val handler = object : Handler(Looper.myLooper()!!) {
+        override fun handleMessage(msg: Message) {
+            super.handleMessage(msg)
+            if (msg.what == OPT_RESTART_NEW_EVENT) {
+                if (isRestartPlayback) {
+                    newRecordEvent?.let { event ->
+                        mRecordEvent = event
+                        mRecordDuration = newRecordEventDuration
+                        mRecordIndex = newRecordEventIndex
+                        newRecordEvent = null
+                        newRecordEventDuration = 0
+                        newRecordEventIndex = 0
+                        if (mAvChannel < 0) {
+                            mRecordEvent?.let {
+                                if (mPlaybackStatus == null) {
+                                    mCamera.playback(
+                                        type = PlaybackStatus.START,
+                                        time = it,
+                                        duration = mRecordDuration,
+                                        index = mRecordIndex
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
     /**设置充满全屏*/
     private fun _setFullScreen() {
-        Liotc.d("Monitor", "_setFullScreen 1")
+        Liotc.d("PlaybackMonitor", "_setFullScreen 1")
         if (nScreenWidth != 0 && nScreenHeight != 0) {
-            Liotc.d("Monitor", "_setFullScreen 2")
+            Liotc.d("PlaybackMonitor", "_setFullScreen 2")
             isFullScreen = false
             val cHeight = nScreenWidth * 9 / 16
             if (cHeight >= nScreenHeight) {
@@ -224,8 +271,16 @@ class PlaybackMonitor @JvmOverloads constructor(
     /**
      * 必须调用此方法 回复才能正常运行
      */
-    fun startPlayback(camera: Camera?, event: TEvent?, playBackCallback: OnPlayBackCallback?) {
+    fun startPlayback(
+        camera: Camera?,
+        event: TEvent?,
+        duration: Int = 0,
+        index: Int = 0,
+        playBackCallback: OnPlayBackCallback?
+    ) {
         mRecordEvent = event
+        mRecordDuration = duration
+        mRecordIndex = index
         mOnPlaybackCallback = playBackCallback
         mCamera = camera
         mCamera?.registerSessionChannelCallback(this)
@@ -236,7 +291,12 @@ class PlaybackMonitor @JvmOverloads constructor(
         if (mAvChannel < 0) {
             mRecordEvent?.let {
                 if (mPlaybackStatus != PlaybackStatus.STOP && mPlaybackStatus != PlaybackStatus.START) {
-                    mCamera.playback(type = PlaybackStatus.START, time = it)
+                    mCamera.playback(
+                        type = PlaybackStatus.START,
+                        time = it,
+                        duration = duration,
+                        index = index
+                    )
                 }
             }
         }
@@ -250,7 +310,12 @@ class PlaybackMonitor @JvmOverloads constructor(
             }
         } else if (mAvChannel < 0 && mPlaybackStatus == null) {
             mRecordEvent?.let {
-                mCamera.playback(type = PlaybackStatus.START, time = it)
+                mCamera.playback(
+                    type = PlaybackStatus.START,
+                    time = it,
+                    duration = mRecordDuration,
+                    index = mRecordIndex
+                )
             }
         }
     }
@@ -293,29 +358,40 @@ class PlaybackMonitor @JvmOverloads constructor(
      * 释放播放资源
      */
     private fun stop() {
-        if (mAvChannel >= 0 && mPlaybackStatus != PlaybackStatus.STOP) {
+//        if (mAvChannel >= 0 && mPlaybackStatus != PlaybackStatus.STOP) {
+        Liotc.d(TAG, "stop mAvChannel=$mAvChannel")
+        if (mAvChannel >= 0) {
             releaseAudio()
+            Liotc.d(TAG, "stop1")
             mRecordEvent?.let {
-                mCamera.playback(type = PlaybackStatus.STOP, time = it)
+                if (mPlaybackStatus != PlaybackStatus.STOP) {
+                    Liotc.d(TAG, "stop 2")
+                    mCamera.playback(type = PlaybackStatus.STOP, time = it)
+                }
             }
+            Liotc.d(TAG, "stop 3")
             if (isRecording) {
                 stopRecord()
             }
+            Liotc.d(TAG, "stop 4")
 //            setAudioTrackStatus(false)
+            Liotc.d(TAG, "stop 5")
             stopShow()
+            Liotc.d(TAG, "stop 6")
             mCamera?.stop(mAvChannel)
-
+            Liotc.d(TAG, "stop 7")
             //释放音频资源
             releaseAudio()
 
             stopPlayTime()
             mAvChannel = -1
+            mPlaybackStatus = null
 //            mOnPlaybackCallback = null
         }
     }
 
     private fun startPlayTime() {
-
+        if(userDeviceStatusBarTime) return
         mPlayTimeJob?.cancel()
         mPlayTimeJob = null
         mPlayTimeRunning = true
@@ -359,7 +435,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         destroyRendjob()
     }
 
-    private fun destroyRendjob(){
+    private fun destroyRendjob() {
         isRunning = false
         mMonitorThread?.stopThread()
         kotlin.runCatching {
@@ -389,14 +465,14 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     fun setAudioTrackStatus(status: Boolean) {
         mAudioTrackStatus = status
-        Liotc.d("RecvAudioJob", "motion setAudioListener=$status")
+        Liotc.d("PlaybackMonitor", "motion setAudioListener=$status")
         setAudioListener(if (mAudioTrackStatus) AudioListener.UNMUTE else AudioListener.MUTE)
     }
 
     /**监听*/
     private fun setAudioListener(audioListener: AudioListener) {
         if (mAvChannel >= 0) {
-            Liotc.d("RecvAudioJob", "motion setAudioListener=$audioListener")
+            Liotc.d("PlaybackMonitor", "motion setAudioListener=$audioListener")
             mCamera?.setAudioTrackStatus(context, mAvChannel, audioListener == AudioListener.UNMUTE)
         }
     }
@@ -434,45 +510,49 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     private fun renderJob() {
         kotlin.runCatching {
-            if (isRunning && mMonitorThread?.isThreadRunning() == true) {
-                Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
-                return
-            }
-            Liotc.d("Monitor", "surfaceDestroyed 1 renderJob=$canDraw")
-            if (!canDraw) return
-            Liotc.d("Monitor", "renderJob running")
+            Liotc.d("PlaybackMonitor", "renderJob is Running[$isRunning]")
+//            if (isRunning && mMonitorThread?.isThreadRunning() == true) {
+//                Liotc.d("PlaybackMonitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+//                return
+//            }
+//            Liotc.d("PlaybackMonitor", "renderJob surfaceDestroyed 1 renderJob=$canDraw")
+//            if (!canDraw) return
+            Liotc.d("PlaybackMonitor", "renderJob running")
             isRunning = true
 
 
-            mMonitorThread = object:MonitorThread(surfaceHolder = holder){
+            mMonitorThread = object : MonitorThread(surfaceHolder = holder) {
                 override fun run() {
 
                     var videoCanvas: Canvas? = null
 
                     mPaint.isDither = true
 
-                    while (isThreadRunning() ) {
+                    while (isThreadRunning()) {
                         if (mCamera == null) break
                         Liotc.d(
-                            "Monitor",
+                            "PlaybackMonitor",
                             "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}],canDraw=$canDraw"
                         )
                         if (!isThreadRunning()) {
                             break
                         }
-                        if (mLastFrame != null && mLastFrame?.isRecycled == false) {
+                        if (mLastFrame != null && mLastFrame?.isRecycled == false && canDraw) {
                             try {
                                 videoCanvas = mSurHolder?.lockCanvas()
                                 videoCanvas?.let { canvas ->
                                     canvas.drawColor(Color.BLACK)
                                     mLastFrame?.let { bitmap ->
-                                        Liotc.d("Monitor", "drawBitmap")
+                                        Liotc.d("PlaybackMonitor", "renderJob drawBitmap")
                                         canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
                                     }
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()
-                                Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
+                                Liotc.d(
+                                    "PlaybackMonitor",
+                                    "renderJob surfaceDestroyed renderJob error=${e.message}"
+                                )
                             } finally {
                                 videoCanvas?.let {
                                     if (this@PlaybackMonitor.canDraw) {
@@ -484,7 +564,9 @@ class PlaybackMonitor @JvmOverloads constructor(
                         }
                         Thread.sleep(33L)
                     }
-                    Liotc.d("Monitor", "renderJob end")
+                    isRunning = false
+
+                    Liotc.d("PlaybackMonitor", "renderJob end")
                 }
             }
             mMonitorThread?.start()
@@ -493,10 +575,10 @@ class PlaybackMonitor @JvmOverloads constructor(
 
         }
 //        if (isRunning && mRenderJob?.isActive == true) {
-//            Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+//            Liotc.d("PlaybackMonitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
 //            return
 //        }
-//        Liotc.d("Monitor", "renderJob running")
+//        Liotc.d("PlaybackMonitor", "renderJob running")
 //        isRunning = true
 //        mRenderJob = GlobalScope.launch(Dispatchers.IO) {
 //
@@ -505,7 +587,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 //
 //            while (isRunning && mRenderJob?.isActive == true) {
 //                Liotc.d(
-//                    "Monitor",
+//                    "PlaybackMonitor",
 //                    "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
 //                )
 //                if (mLastFrame != null && mLastFrame?.isRecycled == false) {
@@ -514,7 +596,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 //                        videoCanvas?.let { canvas ->
 //                            canvas.drawColor(Color.BLACK)
 //                            mLastFrame?.let { bitmap ->
-//                                Liotc.d("Monitor", "drawBitmap")
+//                                Liotc.d("PlaybackMonitor", "drawBitmap")
 //                                canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
 //                            }
 //                        }
@@ -531,7 +613,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 //                }
 //                delay(33L)
 //            }
-//            Liotc.d("Monitor", "renderJob end")
+//            Liotc.d("PlaybackMonitor", "renderJob end")
 //            isRunning = false
 //        }
     }
@@ -542,7 +624,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
 
     fun onStart() {
-        Liotc.d("Monitor", "onStart")
+        Liotc.d("PlaybackMonitor", "onStart")
 
     }
 
@@ -565,8 +647,16 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     fun onDestroy() {
-        Liotc.d("Monitor", "onDestroy")
-
+        isRestartPlayback = false
+        newRecordEvent = null
+        newRecordEventDuration = 0
+        newRecordEventIndex = 0
+        handler.removeCallbacksAndMessages(null)
+        Liotc.d("PlaybackMonitor", "onDestroy")
+        if (isRecording) {
+            stopRecord()
+        }
+        destroyRendjob()
         stop()
         mOnPlaybackCallback = null
         unRegisterAVChannelRecordStatus()
@@ -574,9 +664,38 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
 
+    //重新播放或者播放新的
+    fun restartPlayback(
+        camera: Camera? = null,
+        event: TEvent?,
+        duration: Int = 0,
+        index: Int = 0,
+        delay: Long = 500L,
+        playBackCallback: OnPlayBackCallback?
+    ) {
+
+        if (mRecordEvent == null) {
+            startPlayback(camera, event, duration, index, playBackCallback)
+            return
+        }
+
+        if (isRecording) {
+            stopRecord()
+        }
+        destroyRendjob()
+        stop()
+        handler.removeMessages(OPT_RESTART_NEW_EVENT)
+        isRestartPlayback = true
+        newRecordEvent = event
+        newRecordEventDuration = duration
+        newRecordEventIndex = index
+        handler.sendEmptyMessageDelayed(OPT_RESTART_NEW_EVENT, delay)
+    }
+
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
-        Liotc.d("Monitor", "motion event action [${event?.action}]")
+        Liotc.d("PlaybackMonitor", "motion event action [${event?.action}]")
         event?.let { _event ->
             when ((_event.action) and MotionEvent.ACTION_MASK) {
                 MotionEvent.ACTION_DOWN -> {
@@ -680,13 +799,16 @@ class PlaybackMonitor @JvmOverloads constructor(
                 }
             }
         }
-        mGestureDetector?.onTouchEvent(event)
+
+        event?.let { evt->
+            mGestureDetector?.onTouchEvent(evt)
+        }
         return true
     }
 
     /**计算双指巨鹿*/
     private fun spacing(event: MotionEvent): Float {
-        Liotc.d("Monitor", "spacing [${event.pointerCount}]")
+        Liotc.d("PlaybackMonitor", "spacing [${event.pointerCount}]")
         if (event.pointerCount > 1) {
             val x = event.getX(0) - event.getX(1)
             val y = event.getY(0) - event.getY(1)
@@ -744,19 +866,19 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     /**缩放视频*/
     private fun scaleVideo(event: MotionEvent): Boolean {
-        Liotc.d("Monitor", "scaleVideo 1 [${event.pointerCount}]")
+        Liotc.d("PlaybackMonitor", "scaleVideo 1 [${event.pointerCount}]")
         if (System.currentTimeMillis() - mLastZoomTime < 33 || event.pointerCount == 1) {
             return true
         }
         val newDist = spacing(event)
-        Liotc.d("Monitor", "scaleVideo 2 [$newDist]")
+        Liotc.d("PlaybackMonitor", "scaleVideo 2 [$newDist]")
         if (mOrigDist == 0f) {
             return true
         }
         val scale = newDist / mOrigDist
         mCurrentScale *= scale
         mOrigDist = newDist
-        Liotc.d("Monitor", "scaleVideo 3 [$mCurrentScale],[$mCurrentMaxScale],[$scale]")
+        Liotc.d("PlaybackMonitor", "scaleVideo 3 [$mCurrentScale],[$mCurrentMaxScale],[$scale]")
         if (mCurrentScale > mCurrentMaxScale) {
             mCurrentScale = mCurrentMaxScale
             return true
@@ -782,7 +904,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
         var r = l + scaleWidth
         var b = t + scaleHeight
-        Liotc.d("Monitor", "scaleVideo 4 ")
+        Liotc.d("PlaybackMonitor", "scaleVideo 4 ")
         if (scaleWidth <= origWidth || scaleHeight <= origHeight) {
             l = vLeft
             t = vTop
@@ -795,7 +917,7 @@ class PlaybackMonitor @JvmOverloads constructor(
             b = t + maxHeight
         }
         mRectCanvas.set(l, t, r, b)
-        Liotc.d("Monitor", "scaleVideo 5 ")
+        Liotc.d("PlaybackMonitor", "scaleVideo 5 ")
         mLastZoomTime = System.currentTimeMillis()
         return false
     }
@@ -806,7 +928,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         Liotc.d(
-            "Monitor",
+            "PlaybackMonitor",
             "surfaceChanged [screen[$nScreenWidth,$nScreenWidth]],[surface[$width,$height]],measured[$measuredWidth,$measuredHeight]"
         )
         canDraw = true
@@ -865,7 +987,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 
             mCurrentScale = 1f
 
-            Liotc.d("Monitor", "_setFullScreen surfaceChanged[$isFullScreen]")
+            Liotc.d("PlaybackMonitor", "_setFullScreen surfaceChanged[$isFullScreen]")
 
 
 //            parseMidPoint(
@@ -883,7 +1005,7 @@ class PlaybackMonitor @JvmOverloads constructor(
 //                vBottom.toFloat()
 //            )
         }
-        renderJob()
+//        renderJob()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -900,18 +1022,45 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?, time: Long) {
+        if(userDeviceStatusBarTime){
+            if(firstStatusBarTime == -1L){
+                firstStatusBarTime = time
+                mCurrentDeviceStatusBar = 0
+            }else{
+                mCurrentDeviceStatusBar = (time-firstStatusBarTime).toInt()
+            }
+            mVideoPlayTime = mCurrentDeviceStatusBar
+            if(meoofRecord){
+                if(mPlaybackStatus == PlaybackStatus.PLAYING){
+                    mOnPlaybackCallback?.onPlayBackStatus(
+                        mPlaybackStatus,
+                        mVideoTotalTime,
+                        mCurrentDeviceStatusBar
+                    )
+                }
+            }
+
+        }
+
+        Liotc.d(
+            "PlaybackMonitor",
+            "receiveFrameData time=$time"
+        )
         if (avChannel != mAvChannel) {
-            Liotc.d("Monitor", "receiveFrameData error [$avChannel],[$mAvChannel],[${bmp == null}]")
+            Liotc.d(
+                "PlaybackMonitor",
+                "receiveFrameData error [$avChannel],[$mAvChannel],[${bmp == null}]"
+            )
         }
         if (avChannel == mAvChannel) {
             Liotc.d(
-                "Monitor",
+                "PlaybackMonitor",
                 "receiveFrameData success [$avChannel],[$mAvChannel],[${bmp == null}]"
             )
             mLastFrame = bmp
 
             if (mRenderJob == null || mRenderJob?.isActive != true || !isRunning) {
-                Liotc.d("Monitor", "restart render job")
+                Liotc.d("PlaybackMonitor", "restart render job")
 //                renderJob()
             }
 
@@ -923,7 +1072,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                 (nScreenHeight != mCurVideoHeight || nScreenWidth != mCurVideoWidth)
             ) {
                 Liotc.d(
-                    "Monitor",
+                    "PlaybackMonitor",
                     "screen[${nScreenWidth},${nScreenHeight}],video[${mCurVideoWidth},${mCurVideoHeight}]"
                 )
 
@@ -948,7 +1097,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                 vBottom = mRectCanvas.bottom
 
                 mCurrentScale = 1f
-                Liotc.d("Monitor", "_setFullScreen receiveFrameData[$isFullScreen]")
+                Liotc.d("PlaybackMonitor", "_setFullScreen receiveFrameData[$isFullScreen]")
             }
 
             if (isFullScreen) {
@@ -988,20 +1137,25 @@ class PlaybackMonitor @JvmOverloads constructor(
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP -> {
                 val playback = data.parsePlayBack()
                 Liotc.d(
-                    "RecvAudioJob",
+                    "PlaybackMonitor",
                     "--------IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP type=${playback?.type},${mOnPlaybackCallback == null},channel=${playback?.channel}"
                 )
                 when (playback?.type) {
                     PlaybackStatus.START -> {
-                        mVideoTotalTime = playback.time / 1000
-                        mVideoPlayTime = 0
+                        mVideoTotalTime = if(meoofRecord){
+                            mRecordDuration*1000
+                        }else{
+                            playback.time / 1000
+                        }
+                        mVideoPlayTime = if(userDeviceStatusBarTime) mCurrentDeviceStatusBar else 0
                         mPlaybackStatus = PlaybackStatus.START
                         mOnPlaybackCallback?.onPlayBackStatus(
                             mPlaybackStatus,
                             mVideoTotalTime,
                             mVideoPlayTime
                         )
-
+                        firstStatusBarTime = -1L
+                        mCurrentDeviceStatusBar = 0
                         if (playback.channel in 0..31) {
                             mAvChannel = playback.channel
                             startShow()
@@ -1056,6 +1210,9 @@ class PlaybackMonitor @JvmOverloads constructor(
                     }
                     PlaybackStatus.SEEKTIME -> {
                         mVideoPlayTime = mSeekTime
+                    }
+                    else->{
+
                     }
                 }
             }

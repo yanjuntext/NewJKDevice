@@ -60,11 +60,13 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
     long a;
     long b;
 
+    private OnRecordVolumeListener onRecordVolumeListener;
+
     public a(Context var1, RecodeAudioDataListener var2, Frequency var3, int var4) {
         this.c = var1;
         this.g = var3.value();
         this.f = 160;
-        WebRtcUtil.init((long)this.g);
+        WebRtcUtil.init((long) this.g);
         this.A = var2;
         this.r = var4;
         this.o = new c(var3.value() * 4, this.r);
@@ -95,16 +97,16 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
             int var4 = 1;
 
-            for(int var5 = 0; var5 < (int)Math.log10((double)var3); ++var5) {
+            for (int var5 = 0; var5 < (int) Math.log10((double) var3); ++var5) {
                 var4 *= 10;
             }
 
             var3 /= var4;
             if (var3 > 0) {
-                this.C = (float)(1.0D / Math.pow(2.0D, (double)var3));
+                this.C = (float) (1.0D / Math.pow(2.0D, (double) var3));
                 this.B = 1.0F;
             } else if (var3 < 0) {
-                this.C = (float)(-var3);
+                this.C = (float) (-var3);
                 this.B = 1.0F;
             } else {
                 this.C = 1.0F;
@@ -313,8 +315,8 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                     Class var6;
                                     if (a.this.t && a.this.n) {
                                         var6 = com.ingenic.b.a.class;
-                                        synchronized(com.ingenic.b.a.class) {
-                                            while(!a.this.s && a.this.n) {
+                                        synchronized (com.ingenic.b.a.class) {
+                                            while (!a.this.s && a.this.n) {
                                                 com.ingenic.b.a.class.wait();
                                             }
                                         }
@@ -324,8 +326,8 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
                                     if (a.this.w || a.this.z) {
                                         var6 = com.ingenic.b.a.class;
-                                        synchronized(com.ingenic.b.a.class) {
-                                            while((a.this.w || a.this.z) && a.this.n) {
+                                        synchronized (com.ingenic.b.a.class) {
+                                            while ((a.this.w || a.this.z) && a.this.n) {
                                                 com.ingenic.b.a.class.wait();
                                             }
                                         }
@@ -341,11 +343,11 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                     }
 
                                     if (var18 != null) {
-                                        var18.onUpdate((var4.getTimeStamp() == 0L ? (long)var2 : var4.getTimeStamp()) - (long)var2);
+                                        var18.onUpdate((var4.getTimeStamp() == 0L ? (long) var2 : var4.getTimeStamp()) - (long) var2);
                                     }
 
                                     a.this.x = a.this.x + 1;
-                                } while(a.this.j);
+                                } while (a.this.j);
 
                                 return;
                             }
@@ -386,26 +388,26 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
                             byte[] var6 = new byte[a.this.r];
                             Class var7 = com.ingenic.b.a.class;
-                            synchronized(com.ingenic.b.a.class) {
+                            synchronized (com.ingenic.b.a.class) {
                                 a.this.s = true;
                                 com.ingenic.b.a.class.notify();
                             }
 
-                            while((a.this.E ? a.this.y : a.this.x) <= 5) {
+                            while ((a.this.E ? a.this.y : a.this.x) <= 5) {
                                 Thread.sleep(10L);
                             }
 
-                            while((a.this.E ? a.this.y : a.this.x) <= 6) {
+                            while ((a.this.E ? a.this.y : a.this.x) <= 6) {
                                 Thread.sleep(1L);
                             }
 
                             int var41 = 0;
 
-                            while(true) {
+                            while (true) {
                                 ++var41;
                                 if (var41 > a.this.y) {
                                     int[] var42 = new int[1];
-                                    a.this.v = MyAudioUtils.creatAudioRecord(a.this.c,var42, a.this.g, a.this.r, true);
+                                    a.this.v = MyAudioUtils.creatAudioRecord(a.this.c, var42, a.this.g, a.this.r, true);
                                     if (a.this.v == null) {
                                         throw new NullPointerException("audio recode is null");
                                     }
@@ -417,17 +419,18 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                     long var11 = 0L;
                                     byte[] var14 = new byte[var42[0]];
 
-                                    while(true) {
-                                        while(a.this.j) {
+                                    while (true) {
+                                        while (a.this.j) {
                                             byte[] var40 = a.this.p.c();
                                             if (var40 == null) {
                                                 a.this.w = true;
                                                 Class var15 = com.ingenic.b.a.class;
-                                                synchronized(com.ingenic.b.a.class) {
+                                                synchronized (com.ingenic.b.a.class) {
                                                     var40 = new byte[a.this.r];
 
-                                                    for(int var16 = 0; var16 < a.this.f / 50 + 3; ++var16) {
-                                                        a.this.v.read(var1, 0, a.this.r);
+                                                    for (int var16 = 0; var16 < a.this.f / 50 + 3; ++var16) {
+                                                        int size = a.this.v.read(var1, 0, a.this.r);
+
                                                         WebRtcUtil.bufferFarendAndProcess(var40, var1, var6, a.this.r, a.this.f, 0, a.this.B, a.this.C);
                                                         if (a.this.l) {
                                                             a.this.q.a(var6, var6.length);
@@ -435,9 +438,9 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
                                                         if (d) {
                                                             var4.write(var1);
-                                                            Arrays.fill(var40, (byte)100);
+                                                            Arrays.fill(var40, (byte) 100);
                                                             var3.write(var40);
-                                                            Arrays.fill(var40, (byte)0);
+                                                            Arrays.fill(var40, (byte) 0);
                                                             var2.write(var6);
                                                         }
                                                     }
@@ -445,15 +448,16 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                                     var11 = 0L;
                                                     var9 = 0L;
 
-                                                    while(var9 - var11 < 10L) {
+                                                    while (var9 - var11 < 10L) {
                                                         var11 = System.currentTimeMillis();
                                                         int var13 = a.this.v.read(var14, 0, var14.length);
+                                                        calVoice(var14, var13);
                                                         var9 = System.currentTimeMillis();
                                                         if (d) {
                                                             byte[] var43 = new byte[var13];
                                                             var4.write(var14);
                                                             var2.write(var14, 0, var13);
-                                                            Arrays.fill(var43, (byte)100);
+                                                            Arrays.fill(var43, (byte) 100);
                                                             var3.write(var43);
                                                         }
 
@@ -462,7 +466,7 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                                         }
 
                                                         if (a.this.A != null) {
-                                                            a.this.A.onRecodeAudioData(var14, var13, (byte[])null);
+                                                            a.this.A.onRecodeAudioData(var14, var13, (byte[]) null);
                                                         }
                                                     }
 
@@ -470,7 +474,7 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                                         a.this.v.stop();
                                                         a.this.v.startRecording();
                                                         if (a.this.y > 0) {
-                                                            while(true) {
+                                                            while (true) {
                                                                 if (a.this.p.c() == null) {
                                                                     a.this.u.pause();
                                                                     a.this.u.flush();
@@ -492,13 +496,14 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
                                                 Thread.sleep(100L);
                                             } else {
-                                                a.this.v.read(var1, 0, a.this.r);
+                                                int size = a.this.v.read(var1, 0, a.this.r);
+                                                calVoice(var1, size);
                                                 if (d) {
                                                     var11 = System.currentTimeMillis();
                                                 }
 
                                                 if (a.this.A != null) {
-                                                    a.this.A.onRecodeAudioData(var1, a.this.r, (byte[])null);
+                                                    a.this.A.onRecodeAudioData(var1, a.this.r, (byte[]) null);
                                                 }
 
                                                 if (a.this.k) {
@@ -578,7 +583,7 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
                                     }
 
                                     Class var1 = com.ingenic.b.a.class;
-                                    synchronized(com.ingenic.b.a.class) {
+                                    synchronized (com.ingenic.b.a.class) {
                                         com.ingenic.b.a.class.notifyAll();
                                     }
                                 }
@@ -597,7 +602,7 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
     }
 
     public void onAudioFocusChange(int var1) {
-        switch(var1) {
+        switch (var1) {
             case -3:
             case -2:
             case -1:
@@ -613,6 +618,36 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
 
     }
 
+    public AudioRecord getAudioRecord() {
+        return this.v;
+    }
+
+    private double calVoice(byte[] buff, int size) {
+        long v = 0;
+        // 将 buffer 内容取出，进行平方和运算
+        for (int i = 0; i < buff.length; i++) {
+            v += buff[i] * buff[i];
+        }
+        // 平方和除以数据总长度，得到音量大小。
+
+        double mean = v / (double) size;
+        //分贝值
+        double volume = 10 * Math.log10(mean);
+        try {
+            if(onRecordVolumeListener != null){
+                onRecordVolumeListener.onVolume(volume);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return volume;
+    }
+
+    public void setOnRecordVolumeListener(OnRecordVolumeListener listener){
+        onRecordVolumeListener = listener;
+    }
+
     private class MyReceiver extends BroadcastReceiver {
         private MyReceiver() {
         }
@@ -623,5 +658,9 @@ public class a implements AudioManager.OnAudioFocusChangeListener {
             }
 
         }
+    }
+
+    public interface OnRecordVolumeListener {
+        void onVolume(double volume);
     }
 }

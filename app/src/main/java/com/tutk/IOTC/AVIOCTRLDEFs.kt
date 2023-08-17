@@ -469,6 +469,7 @@ object AVIOCTRLDEFs {
      */
     const val IOTYPE_USER_IPCAM_GET_WIFI_SIGNAL_REQ = 0x5029
     const val IOTYPE_USER_IPCAM_GET_WIFI_SIGNAL_RESP = 0x5030
+    const val IOTYPE_USER_IPCAM_GET_WIFI_SIGNAL_RESP_2 = 0x502A
 
     /**
      * OSD 设置和获取
@@ -522,6 +523,51 @@ object AVIOCTRLDEFs {
     /**设备复位*/
     const val IOTYPE_USER_IPCAM_DEVRESET_REQ = 0x200A
     const val IOTYPE_USER_IPCAM_DEVRESET_RESP = 0x200B
+
+    /**
+     * https://docs.qq.com/doc/DZFRwZld0ekZEZ0Rm
+     * 低功耗设备模式切换
+     * */
+    const val IOTYPE_USER_NOSLEEP_MODE_REQ = 0x5121
+    const val IOTYPE_USER_NOSLEEP_MODE_RESP = 0x5122
+
+
+    /**-------------
+     * Meoof 新协议
+     * https://docs.qq.com/doc/DZHJqcldKbnlaRGhC
+     * ------------*/
+    //查询设备在线状态
+    const val IOTYPE_MEOOF_DEVICE_STATUS_REQ = 0x5101
+    const val IOTYPE_MEOOF_DEVICE_STATUS_RESP = 0x5102
+
+    //手动喂食
+    const val IOTYPE_MEOOF_APP_FEED_REQ = 0x5104
+    const val IOTYPE_MEOOF_APP_FEED_RESP = 0x5105
+
+    //批量 设置/获取 喂食计划
+    const val IOTYPE_MEOOF_SET_FEEDPLAN_REQ = 0x5106
+    const val IOTYPE_MEOOF_SET_FEEDPLAN_RESP = 0x5107
+
+    //通知设备修改开关类状态
+    const val IOTYPE_MEOOF_SET_DEVICE_SWITCH_REQ = 0x5108
+    const val IOTYPE_MEOOF_SET_DEVICE_SWITCH_RESP = 0x5109
+
+    //设备上报当前喂食状态
+    const val IOTYPE_MEOOF_FEEDING_STATUS_UPLOAD = 0x510A
+
+    //通知APP查询喂食/进食记录
+    const val IOTYPE_MEOOF_NOTIFY_FEEDLOG = 0x510B
+
+    // APP 设置/获取 设备端开启/关闭 私密模式（开流开关，影响P2P直播与录像）
+    const val IOTYPE_MEOOF_PRIVATE_MODE_REQ = 0x510C
+    const val IOTYPE_MEOOF_PRIVATE_MODE_RESP = 0x510D
+
+    //APP 获取MEOOF设备端前12个月的录像列表
+    const val IOTYPE_MEOOF_GET_MONTH_RECORD_LIST_REQ = 0x510E
+    const val IOTYPE_MEOOF_GET_MONTH_RECORD_LIST_RESP = 0x510F
+
+
+    /**-------------Meoof 新协议------------*/
 
 
     private fun initByteArray(size: Int) = ByteArray(size)
@@ -1047,7 +1093,13 @@ object AVIOCTRLDEFs {
      * @param time 回放视频的日期 回放的具体录像
      * @param percent 百分比
      */
-    fun playback(type: PlaybackStatus, time: ByteArray, percent: Int): ByteArray {
+    fun playback(
+        type: PlaybackStatus,
+        time: ByteArray,
+        percent: Int,
+        duration: Int = 0,
+        index: Int = 0
+    ): ByteArray {
         val data = initByteArray(24)
         val channel = 0.littleByteArray()
         val _type = type.status.littleByteArray()
@@ -1060,6 +1112,9 @@ object AVIOCTRLDEFs {
         if (type == PlaybackStatus.SEEKTIME) {
             val _percent = percent.littleByteArray()
             System.arraycopy(_percent, 0, data, 20, _percent.size)
+        } else {
+            data[20] = duration.toByte()
+            data[21] = index.toByte()
         }
         return data
     }
@@ -1265,7 +1320,6 @@ object AVIOCTRLDEFs {
         data[0] = if (status) 1 else 0
         return data
     }
-
 
 
 }

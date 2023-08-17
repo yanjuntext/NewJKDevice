@@ -374,6 +374,12 @@ public class IOTCAPIs {
     public static final int IOTC_ER_DID_NOT_LOGIN_WITH_AUTHKEY = -71;
 
     /**
+     * The function call is being rejected because there is at least one IOTC session in use
+     */
+    public static final int IOTC_ER_SESSION_IN_USE = -72;
+
+
+    /**
      * All Server response can not find device
      */
     public static final int IOTC_ER_DEVICE_OFFLINE = -90;

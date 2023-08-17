@@ -253,10 +253,11 @@ fun ByteArray?.parseRecordVideoEvent(): TRecordVideoInfo? {
     Liotc.d("parseRecordVideoEvent", "total[$total],index=$index,end=$end,count=$count")
     val offset = 12
     val eachSize = 12
-
-    if ((size - offset) / eachSize != count) {
-        count = (size - offset) / eachSize
+    val sCount = (size - offset) / eachSize
+    if(sCount != count && count != 0){
+        count = sCount
     }
+
     Liotc.d("parseRecordVideoEvent", "count[$count]")
     val list = mutableListOf<TEvent>()
     //设备返回的时间是零时区的时间
@@ -674,6 +675,15 @@ fun ByteArray?.parseChildrenLock(): TChildrenLock? {
 fun ByteArray?.parseResetDevice(): TResetDevice? {
     if (this == null || this.size < 4) return null
     return TResetDevice(this.littleInt(0))
+}
+
+/**
+ *  [AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_RESP]
+ * 低功耗设备模式切换
+ */
+fun ByteArray?.parseNosLeep():TNosLeep?{
+    if (this == null || this.size < 6) return null
+    return TNosLeep(this.littleInt(0),this[4].toInt(),this[5].toInt() == 1)
 }
 
 

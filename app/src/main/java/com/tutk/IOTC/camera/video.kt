@@ -55,7 +55,10 @@ class RecvVideoJob(
 
     private var isFirstIFrame = true
 
-    private var isFirstRecording = false;
+    private var isFirstRecording = false
+
+    private var isChangeVideoQuality = false
+
 
     fun setSid(sid: Int) {
         mSID = sid
@@ -92,10 +95,12 @@ class RecvVideoJob(
             d(TAG, "RecvVideoJob is Running,not rerun")
             return
         }
-
+        isChangeVideoQuality = false
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
+                avChannel?.refreshSid()
                 while (isRunning && isActive && (mSID < 0 || getAvIndex() < 0 || mSID == IOTC_CONNECT_ING)) {
+                    avChannel?.refreshSid()
                     delay(100)
                 }
 
@@ -135,10 +140,24 @@ class RecvVideoJob(
                         Packet.intToByteArray_Little(0)
                     )
                 }
+                var lastIFrameSize = -1
                 //发送过511命令之后再通知上层清楚命令，优先保证视频获取
                 emit(RecvVideoInfo(Camera.EXTRA_EVENT_HAD_CLEAN_VIDEOBUF))
                 while (isRunning) {
+                    avChannel?.refreshSid()
                     if (mSID >= 0 && getAvIndex() >= 0) {
+                        if (isChangeVideoQuality) {
+                            Liotc.d("AvChannel", "changeQualityStopDecoderVideo: remove all frame ")
+                            avChannel?.VideoFrameQueue?.removeAll()
+                            avChannel?.IOCtrlQueue?.Enqueue(
+                                getAvIndex(),
+                                511,
+                                Packet.intToByteArray_Little(0)
+                            )
+
+                            isChangeVideoQuality = false
+                            continue
+                        }
                         if (System.currentTimeMillis() - nLastTimeStamp > 1000L) {
                             nLastTimeStamp = System.currentTimeMillis()
                             emit(
@@ -179,10 +198,15 @@ class RecvVideoJob(
                                     avChannel?.playMode?.value ?: PlayMode.PLAY_LIVE.value
                                 )
                                 avChannel?.codeId = fram.codec_id.toInt()
+                                d(
+                                    TAG,
+                                    "AVAPIs.AV_ER_INCOMPLETE_FRAME========== nReadSize=[$nReadSize],running[$isRunning]  i frame[,IFrame[${fram.isIFrame()}]"
+                                )
 
 //                                d(TAG, "camera video data nReadSize[$nReadSize],setSize[]")
 
 //                            if (avChannel?.recording == true && fram.isIFrame() && LocalRecordHelper.recording) {
+
 
                                 if (!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording) {
                                     isFirstRecording = true
@@ -200,6 +224,7 @@ class RecvVideoJob(
 
                                 nCodecId = fram.codec_id.toInt()
                                 nOnlineNumber = fram.onlineNum.toInt()
+
 
                                 when (nCodecId) {
                                     AVFrame.MEDIA_CODEC_VIDEO_H264,
@@ -229,6 +254,7 @@ class RecvVideoJob(
                                             nPrevFrmNo = pFrmNo[0].toLong()
 
                                             avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
+                                            d(TAG, "recv video quality=${isChangeVideoQuality}")
                                             avChannel?.VideoFrameQueue?.addLast(fram)
                                         }
                                     }
@@ -286,7 +312,7 @@ class RecvVideoJob(
                                 nFlow_total_frame_count++
                                 avChannel?.videoBPS = (avChannel?.videoBPS ?: 0) + outBufSize[0]
 
-                                if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2] == 0) {
+                                if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
                                     nIncompleteFrmCount++
                                 } else {
                                     val _framData = ByteArray(outFrmSize[0])
@@ -301,7 +327,7 @@ class RecvVideoJob(
                                         }
                                         AVFrame.MEDIA_CODEC_VIDEO_H264,
                                         AVFrame.MEDIA_CODEC_VIDEO_H265 -> {
-                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2] == 0) {
+                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt()  == 0) {
                                                 nIncompleteFrmCount++
                                             } else {
                                                 val frame = AVFrame(
@@ -383,6 +409,16 @@ class RecvVideoJob(
         e(TAG, "amera video data stop")
     }
 
+    fun setChangeVideoQuality(changeVideoQuality: Boolean) {
+        Liotc.d("AvChannel", "changeQualityStopDecoderVideo: recv ")
+//        avChannel?.VideoFrameQueue?.removeAll()
+//        isChangeVideoQuality = changeVideoQuality
+    }
+
+    fun changeVideoQualityStopDecoderVideo() {
+
+    }
+
     private fun d(tag: String, msg: String) {
         Liotc.d(tag, "$msg   uid[${avChannel?.uid}]")
     }
@@ -402,7 +438,7 @@ class DecodeVideoJob(
     val avChannel: AVChannel?,
     var isRunning: Boolean = false,
     var iavChannelStatus: IAVChannelListener?,
-    var withYuv:Boolean = false
+    var withYuv: Boolean = false
 ) {
 
     private var mContext: WeakReference<Context?>? = null
@@ -415,11 +451,13 @@ class DecodeVideoJob(
     private var mVideoBuffer: ByteBuffer? = null
     private var mVideoOutBuffer: ByteBuffer? = null
     private var mYuvData: ByteArray? = null
-    private var mArgbData:ByteArray? = null
+    private var mArgbData: ByteArray? = null
 
     private fun isActive() = runJob?.isActive == true
 
     private var ratation = 0
+
+    private var isChangeVideoQuality = false
 
     fun setRatation(ratation: Int) {
         this.ratation = ratation
@@ -468,9 +506,32 @@ class DecodeVideoJob(
         var llastFrameSize = -1L
         var lcurrentFrameSize = -1L
         var videoDecodeResult = -1
+
+        isChangeVideoQuality = false
+
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
+                var lastIFrameSize = -1
+                avChannel?.refreshSid()
                 while (isRunning && isActive) {
+                    avChannel?.refreshSid()
+                    if (isChangeVideoQuality) {
+                        Liotc.d("AvChannel", "videoDecodeResult == -4: destory decoder ")
+                        decoderIsInit = false
+                        try {
+                            mVideoDecoder?.unfinalize()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
+                        mVideoBuffer?.clear()
+                        mVideoOutBuffer?.clear()
+                        mVideoBuffer = null
+                        mVideoOutBuffer = null
+                        mVideoDecoder = null
+                        continue
+                    }
+
                     if (avChannel?.VideoFrameQueue == null) {
                         return@flow
                     }
@@ -478,6 +539,10 @@ class DecodeVideoJob(
                         delay(4L)
                         continue
                     }
+                    d("decode video quality=${isChangeVideoQuality}")
+                    //如果正在切换视频分辨率的时候，停止解析
+
+                    d("decode video quality=${isChangeVideoQuality} ----")
 
                     if ((avChannel.VideoFrameQueue?.mSize ?: 0) > 0) {
                         mAvFrame = avChannel.VideoFrameQueue?.removeHead()
@@ -494,7 +559,7 @@ class DecodeVideoJob(
 
                         avFrameSize = mAvFrame?.frmSize ?: 0
 
-                        d("i frame[${mAvFrame?.isIFrame()}]")
+                        d("i frame[${mAvFrame?.isIFrame()}] w=${mAvFrame?.videoWidth} h=${mAvFrame?.videoHeight} size=${avChannel.VideoFrameQueue?.mSize}")
 
                         val count = avChannel.VideoFrameQueue?.mSize ?: 0
 
@@ -532,6 +597,9 @@ class DecodeVideoJob(
                                 delayTime -= skipTime
                             }
                         } else {
+//                            if(videoDecodeResult == -4 && mAvFrame?.isIFrame() != true){
+//                                continue
+//                            }
                             d("camera video dataavFrameSize[$avFrameSize],mAvFramep[${mAvFrame == null}]")
 
                             if (avFrameSize > 0 && isActive) {
@@ -550,6 +618,27 @@ class DecodeVideoJob(
                                         val _data = ByteArray(avFrameSize)
                                         System.arraycopy(frmData, 0, _data, 0, avFrameSize)
                                         d("nCodeId [${avFrame.codec_id}]")
+
+                                        if (avFrame.isIFrame()) {
+                                            if (lastIFrameSize < 0) {
+                                                lastIFrameSize = avFrame.frmSize
+                                            } else if (lastIFrameSize * 2 < avFrame.frmSize || avFrame.frmSize * 2 < lastIFrameSize) {
+                                                //切换的视频分辨率
+                                                if (decoderIsInit) {
+                                                    try {
+                                                        mVideoDecoder?.unfinalize()
+                                                    } catch (e: Exception) {
+                                                        e.printStackTrace()
+                                                    }
+                                                    decoderIsInit = false
+                                                }
+
+                                                d("avcodec_find_decoder -----change I Frame last=${lastIFrameSize}  current=${avFrame.frmSize}")
+                                            }
+
+                                            lastIFrameSize = avFrame.frmSize
+                                        }
+
                                         if (avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H264
                                             || avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265
                                         ) {
@@ -574,25 +663,28 @@ class DecodeVideoJob(
                                             }
                                             mVideoBuffer?.flip()
                                             mVideoOutBuffer?.clear()
-                                            videoDecodeResult = if(withYuv){
+                                            videoDecodeResult = if (withYuv) {
                                                 d("yuv decode 111")
                                                 mVideoDecoder?.decodeWithYUV(
                                                     mVideoBuffer,
                                                     avFrameSize,
-                                                    10,
+                                                    20,
                                                     mVideoOutBuffer,
                                                     mYuvData
-                                                )?:-1
-                                            }else{
+                                                ) ?: -1
+                                            } else {
                                                 mVideoDecoder?.decode(
                                                     mVideoBuffer,
                                                     avFrameSize,
-                                                    10,
+                                                    20,
                                                     mVideoOutBuffer
                                                 ) ?: -1
                                             }
-
-//                                            if (mVideoDecoder?.isFrameReady == true) {
+//                                            if(videoDecodeResult == -4){
+//                                                d("C_TAG videoDecodeResult == -4")
+//                                                avChannel.changeQualityStopDecoderVideo(true)
+//                                                isChangeVideoQuality = true
+//                                            }else{
                                             out_width[0] = mVideoDecoder?.width ?: 0
                                             out_height[0] = mVideoDecoder?.height ?: 0
 //                                            }
@@ -608,25 +700,25 @@ class DecodeVideoJob(
 
                                                 d("llastFrameSize[$llastFrameSize],lcurrentFrameSize[$lcurrentFrameSize],llastFrameSize[$llastFrameSize]")
 
-                                                if (llastFrameSize == -1 && lcurrentFrameSize == llastFrameSize) {
+                                                if (llastFrameSize == -1L && lcurrentFrameSize == llastFrameSize) {
                                                     lcurrentFrameSize = videoWidth.toLong()
                                                     d("set h264/h265 [$llastFrameSize],lc[$lcurrentFrameSize]")
                                                 }
                                                 llastFrameSize = videoWidth.toLong()
 
-                                                if (llastFrameSize != lcurrentFrameSize) {
-                                                    d("reset h264/h265 [${llastFrameSize}],lc[$lcurrentFrameSize]")
-                                                    llastFrameSize = -1
-                                                    lcurrentFrameSize = -1
-
-                                                    try {
-                                                        mVideoDecoder?.unfinalize()
-                                                    } catch (e: Exception) {
-                                                        e.printStackTrace()
-                                                    }
-
-                                                    decoderIsInit = false
-                                                }
+//                                                if (llastFrameSize != lcurrentFrameSize) {
+//                                                    d("reset h264/h265 [${llastFrameSize}],lc[$lcurrentFrameSize]")
+//                                                    llastFrameSize = -1
+//                                                    lcurrentFrameSize = -1
+//
+//                                                    try {
+//                                                        mVideoDecoder?.unfinalize()
+//                                                    } catch (e: Exception) {
+//                                                        e.printStackTrace()
+//                                                    }
+//
+//                                                    decoderIsInit = false
+//                                                }
 
                                                 if (videoWidth > 0 && videoHeight > 0) {
                                                     bmp = Bitmap.createBitmap(
@@ -634,21 +726,26 @@ class DecodeVideoJob(
                                                         videoHeight,
                                                         Bitmap.Config.ARGB_8888
                                                     )
-                                                    if(withYuv){
+                                                    if (withYuv) {
                                                         d("yuv decode 222")
-                                                        LibyuvUtils.I420ToRGBA(mYuvData,mArgbData,videoWidth,videoHeight)
+                                                        LibyuvUtils.I420ToRGBA(
+                                                            mYuvData,
+                                                            mArgbData,
+                                                            videoWidth,
+                                                            videoHeight
+                                                        )
                                                         val wrap = ByteBuffer.wrap(mArgbData)
                                                         wrap.rewind()
                                                         wrap.position(0)
                                                         bmp?.copyPixelsFromBuffer(wrap)
                                                         d("yuv decode 333")
-                                                    }else{
+                                                    } else {
                                                         bmp?.copyPixelsFromBuffer(mVideoOutBuffer)
                                                     }
                                                 }
 
-                                                if (firstTimeStampFromDevice != 0
-                                                    && firstTimeStampFromLocal != 0
+                                                if (firstTimeStampFromDevice != 0L
+                                                    && firstTimeStampFromLocal != 0L
                                                 ) {
                                                     val currentTimeMillis =
                                                         System.currentTimeMillis()
@@ -698,6 +795,9 @@ class DecodeVideoJob(
                                                         System.currentTimeMillis()
                                                 }
                                             }
+
+//                                            }
+//                                            if (mVideoDecoder?.isFrameReady == true) {
 
 //                                            if (avChannel.recording && LocalRecordHelper.recording) {
                                             if (LocalRecordHelper.recording) {
@@ -782,6 +882,11 @@ class DecodeVideoJob(
 
     fun stop() {
         isRunning = false
+    }
+
+    fun setChangeVideoQuality(changeVideoQuality: Boolean) {
+        Liotc.d("AvChannel", "changeQualityStopDecoderVideo: decode ")
+        isChangeVideoQuality = changeVideoQuality
     }
 
 

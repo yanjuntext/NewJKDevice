@@ -774,13 +774,16 @@ fun Camera?.playback(
     channel: Int = Camera.DEFAULT_AV_CHANNEL,
     type: PlaybackStatus,
     time: TEvent,
+
+    duration: Int = 0,
+    index: Int = 0,
     must: Boolean = false
 ): Boolean {
     return if (canSend() || must) {
         this?.sendIOCtrl(
             channel,
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL,
-            AVIOCTRLDEFs.playback(type, time.buf, 0)
+            AVIOCTRLDEFs.playback(type, time.buf, 0, duration, index)
         )
         true
     } else false
@@ -1089,11 +1092,29 @@ fun Camera?.resetDevice(channel: Int = Camera.DEFAULT_AV_CHANNEL, must: Boolean 
     } else false
 }
 
-
-
-
-
-
+/**
+ *  [AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_REQ]
+ * 低功耗设备模式切换
+ */
+fun Camera?.getNosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, must: Boolean = false): Boolean {
+    return nosLeep(channel,0,false,must)
+}
+fun Camera?.setNosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, status:Boolean,must: Boolean = false): Boolean {
+    return nosLeep(channel,1,status,must)
+}
+private fun Camera?.nosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, type: Int,status:Boolean,must: Boolean = false): Boolean {
+    return if (canSend() || must) {
+        val data = ByteArray(2)
+        data[0] = type.toByte()
+        data[1] = if(status) 1 else 0
+        this?.sendIOCtrl(
+            channel,
+            AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_REQ,
+            data
+        )
+        true
+    } else false
+}
 
 
 

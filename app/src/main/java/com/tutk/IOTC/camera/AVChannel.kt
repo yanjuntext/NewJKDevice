@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.*
 import android.net.Uri
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.ingenic.api.AudioFrame
@@ -40,7 +41,8 @@ class AVChannel(
     var mViewAcc: String,
     var mViewPwd: String,
     var uid: String?,
-    var iavChannelStatus: IAVChannelListener?
+    var iavChannelStatus: IAVChannelListener?,
+    var camera:Camera?
 ) {
 
     var mAvIndex = -1
@@ -102,6 +104,8 @@ class AVChannel(
 
     private var mAcousticEchoCanceler: AcousticEchoCanceler? = null
 
+    var audioRecordVolume:Double = 0.0
+
     internal fun setSid(sid: Int) {
         SID = sid
         mStartJob?.setSid(sid)
@@ -112,11 +116,19 @@ class AVChannel(
         mRecvVideoJob?.setSid(sid)
     }
 
+    internal fun refreshSid(){
+//        d("StartJob","StartJob refreshSid=[${camera?.getSid()}]")
+        if(camera != null){
+
+           setSid(camera?.getSid()?:SID)
+        }
+    }
+
     /**开启IO命令*/
-    internal fun start() {
+    internal fun start(delayTime: Long = 500) {
 
         if (mStartJob == null) {
-            mStartJob = StartJob(this, iavChannelStatus = iavChannelStatus)
+            mStartJob = StartJob(this, iavChannelStatus = iavChannelStatus,delayTime = delayTime)
         }
 
         if (mRecvIoJob == null) {
@@ -186,6 +198,12 @@ class AVChannel(
         playMode = PlayMode.PLAY_LIVE
     }
 
+    internal fun changeQualityStopDecoderVideo(changeing:Boolean = false){
+        Liotc.d("AvChannel", "changeQualityStopDecoderVideo:$changeing ")
+        mRecvVideoJob?.setChangeVideoQuality(changeing)
+//        mDecVideoJob?.setChangeVideoQuality(changeing)
+    }
+
 
     //初始化双向语音
     @Synchronized
@@ -201,6 +219,9 @@ class AVChannel(
         mAudioFrame = AudioFrame()
 //        mAudioPlayer = AudioPlayer.getInstance().init(context, null, Frequency.PCM_8K)
         mAudioPlayer = MyAudioPlayer.getInstance().init(context, null, Frequency.PCM_8K)
+        mAudioPlayer?.setOnAudioPlayerVolumeChangeListener {
+            audioRecordVolume = it
+        }
         //            MLog.e("wangyanjun11111", "onUpdate == ");
         mAudioPlayer?.setPtsUpdateListener {
             d("zrtAudioPlayer", "OnTSUpdateListener[$it]")
@@ -214,6 +235,7 @@ class AVChannel(
     //释放双向语音
     @Synchronized
     internal fun unInitAudioPlayer() {
+        d("zrtAudioPlayer", "unInitAudioPlayer")
         //暂停播放
         mAudioPlayer?.soundOff()
         //暂停录制
@@ -232,18 +254,22 @@ class AVChannel(
 
     //播放双向语音:播放音频
     internal fun putPlayData(data: ByteArray?, size: Int, time: Long) {
+        d("RecvAudioJob","putPlayData  1")
         if (mAudioFrame == null) {
             mAudioFrame = AudioFrame()
         }
+        d("RecvAudioJob","putPlayData  2")
         if (data == null || data.isEmpty() || data.size < size) {
             return
         }
-
+        d("RecvAudioJob","putPlayData  3")
         mAudioFrame?.setAudioData(data, size)
         mAudioFrame?.timeStamp = time
         mAudioFrame?.let {
+            d("RecvAudioJob","putPlayData  4")
             mAudioPlayer?.putPlayData(it)
         }
+        d("RecvAudioJob","putPlayData  5")
 
     }
 
@@ -267,10 +293,20 @@ class AVChannel(
         if (status || recording) {
             mRecvAudioJob?.start(context, playMode.value)
         }
-        if (!status && !recording) {
-            mRecvAudioJob?.isRunning = false
+        if(!status && !recording){
+            if(mVoiceType == VoiceType.TWO_WAY_VOICE ){
+                //双向的时候
+
+            }else{
+                mRecvAudioJob?.isRunning = false
+            }
+
         }
+
     }
+
+    //双向的时候不关监听通道
+    fun isAudioPlaying() = audioPlayStatus || (mVoiceType == VoiceType.TWO_WAY_VOICE)
 
 
     internal fun setAudioRecordStatus(
@@ -293,11 +329,14 @@ class AVChannel(
                 throw RuntimeException("plz open android.permission.RECORD_AUDIO permission")
             }
             mSendAudioJob?.start(context)
+        }else{
+            mSendAudioJob?.stop()
         }
     }
 
     //释放音频资源
     internal fun releaseAudio() {
+        d("zrtAudioPlayer", "unInitAudioTrack  000  releaseAudio")
         d("RecvAudioJob", "unInitAudioTrack releaseAudio")
         audioPlayStatus = false
         audioRecordStatus = false
@@ -469,6 +508,8 @@ interface IAVChannelListener {
 
     /**音频发送状态*/
     fun onTalkStatus(status: Boolean)
+    /**录音音量大小*/
+    fun onAudioRecordVolume(valume:Double)
 
 }
 

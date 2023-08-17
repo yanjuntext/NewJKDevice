@@ -3,7 +3,6 @@ package com.tutk.IOTC
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
@@ -16,12 +15,12 @@ import com.tutk.bean.TSupportStream
 import com.tutk.bean.TTimeZone
 import com.tutk.io.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.random.Random
 
 /**
  * @Author: wangyj
@@ -63,6 +62,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         const val CONNECTION_STATE_CONNECT_FAILED = 8
         const val CONNECTION_STATE_CLIENT_NOSUPPORT = 9
         const val CONNECTION_STATE_DEV_SLEEP = 10
+        const val CONNECTION_STATE_RECONENCT = 20
 
         const val EXTRA_EVENT_FRAME_INFO = 11
         const val EXTRA_EVENT_AUDIO_SUPPORT = 13
@@ -198,7 +198,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             mDefaultMaxCameraLimit = limit
         }
 
-        internal fun setCheck(check:Boolean){
+        internal fun setCheck(check: Boolean) {
             IS_CHECK = check
         }
     }
@@ -246,14 +246,17 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     private val mSupportStreamList = mutableListOf<TSupportStream>()
     private var mTTimeZone: TTimeZone? = null
 
-    var onAudioListener:OnAudioListener? = null
+    var onAudioListener: OnAudioListener? = null
 
-    private val handler = object:Handler(Looper.myLooper()!!){
+
+    private val OPT_RECONNECT = 1024
+
+    private val handler = object : Handler(Looper.myLooper()!!) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
-            when(msg.what){
-                OPT_AVChannelRecv->{
-                    d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData handler")
+            when (msg.what) {
+                OPT_AVChannelRecv -> {
+                    d("Monitor", "onAVChannelRecv broadCameraReceiverIOCtrlData handler")
                     //val bundle = Bundle()
                     //        bundle.putInt("channel",channel)
                     //        bundle.putInt("type",type)
@@ -264,6 +267,12 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                     val type = bundle.getInt("type")
                     val data = bundle.getByteArray("data")
                     broadCameraReceiverIOCtrlData(channel, type, data)
+                }
+                OPT_RECONNECT -> {
+                    val obj = msg.obj
+                    if (obj is Long) {
+                        connect(Camera.DEFAULT_AV_CHANNEL, "admin", obj)
+                    }
                 }
             }
 
@@ -276,7 +285,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
      */
     private var mReconnectTime = 0L
 
-    fun setReconnectTime(reconnectTime:Long){
+    fun setReconnectTime(reconnectTime: Long) {
         mReconnectTime = reconnectTime
     }
 
@@ -309,7 +318,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         mOnSessionChannelCallbacks.clear()
     }
 
-    fun getSessionMode():Int{
+    fun getSessionMode(): Int {
         return mSessionMode
     }
 
@@ -536,16 +545,18 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     /**
      * 连接
      */
-    private fun _connect() {
-        startConnectJob()
+    private fun _connect(delayTime: Long = 2000L) {
+        startConnectJob(delayTime)
     }
 
     fun disconnect() {
+        Liotc.d("disconnect", "disconnect size[${mAVChannels.size}] stop--------- $this")
+        handler.removeMessages(OPT_RECONNECT)
         val iterator = mAVChannels.iterator()
-        Liotc.d("disconnect", "disconnect size[${mAVChannels.size}]")
+        Liotc.d("disconnect", "disconnect size[${mAVChannels.size}] stop--------- 1111")
         while (iterator.hasNext()) {
             val next = iterator.next()
-            d("RecvAudioJob", "unInitAudioTrack releaseAudio stop disconnect")
+            d("RecvAudioJob", "unInitAudioTrack releaseAudio stop disconnect  stop---------")
             next.stop()
             if (next.mAvIndex >= 0) {
                 AVAPIs.avClientStop(next.mAvIndex)
@@ -554,13 +565,16 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         mAVChannels.clear()
         stopConnectJob()
 
-
         mSendFileUri = null
         mSendFile = null
         mAvSendFileChannel = null
         mSendFileContext = null
 
         mSupportStreamList.clear()
+        if (nGSID >= 0) {
+            IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
+        }
+        nGSID = -1
         if (mSID >= 0) {
             IOTCAPIs.IOTC_Session_Close(mSID)
         }
@@ -568,18 +582,31 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     }
 
-    fun connect(channel: Int = DEFAULT_AV_CHANNEL, account: String = "admin") {
-        _connect()
-        start(channel, account, psw)
+    fun connect(
+        channel: Int = DEFAULT_AV_CHANNEL,
+        account: String = "admin",
+        delayTime: Long = 2000L
+    ) {
+        _connect(delayTime)
+        start(channel, account, psw, delayTime)
         getSupportStream(channel)
         getAudioCodec(channel)
         getTimeZone(channel, must = true)
     }
 
-    fun reconnect(channel: Int = DEFAULT_AV_CHANNEL, account: String = "admin") {
-        Liotc.d("startConnectJob","reconnect")
+    fun reconnect(
+        channel: Int = DEFAULT_AV_CHANNEL,
+        account: String = "admin",
+        delayTime: Long = 2000L
+    ) {
+        Liotc.d("startConnectJob", "startConnectJob reconnect stop---- $this")
         disconnect()
-        connect(channel, account)
+//        handler.removeMessages(OPT_RECONNECT)
+//        val obtainMessage = handler.obtainMessage()
+//        obtainMessage.what = OPT_RECONNECT
+//        obtainMessage.obj = delayTime
+//        handler.sendMessageDelayed(obtainMessage,2000)
+        connect(channel, account, delayTime)
     }
 
 
@@ -601,7 +628,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**广播设备接收到的数据*/
     private fun broadCameraReceiverIOCtrlData(channel: Int, type: Int, data: ByteArray?) {
-        d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData -------")
+        d("Monitor", "onAVChannelRecv broadCameraReceiverIOCtrlData -------")
         when (type) {
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_PETS_AUDIO_FILE_SEND_RESP -> {
                 //发送文件命令
@@ -664,7 +691,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         val iterator = mOnIOCallbacks.iterator()
         while (iterator.hasNext()) {
             val next = iterator.next()
-            d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData -------${next::class.java.name}")
+            d(
+                "Monitor",
+                "onAVChannelRecv broadCameraReceiverIOCtrlData -------${next::class.java.name}"
+            )
             next.receiveIOCtrlData(this, channel, type, data)
         }
     }
@@ -689,10 +719,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?,time:Long) {
+    private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long) {
         val iterator = mOnFrameCallbacks.iterator()
         while (iterator.hasNext()) {
-            iterator.next().receiveFrameData(this, channel, bitmap,time)
+            iterator.next().receiveFrameData(this, channel, bitmap, time)
         }
     }
 
@@ -725,24 +755,32 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
 
     //开启连接
-    private fun startConnectJob() {
+    private fun startConnectJob(delayTime: Long = 500L) {
         connecting = true
         var first = true
         if (connectJob?.isActive == true) {
             d("startConnectJob", "connectJob isActive")
             return
         }
+        val random = Random.nextInt(250)
+        connectJob?.cancel()
+        connectJob = null
         connectJob = GlobalScope.launch(Dispatchers.Main) {
 
+
             flow {
-                delay(500L)
+                delay(delayTime)
+                ensureActive()
                 val stSInfoEx = St_SInfoEx()
                 var ret = -1
                 var isReconnect = false
                 while (connecting && isActive) {
+                    ensureActive()
                     ret = -1
+                    var destory = false
                     if (first) {
                         while (mSID < 0 && isActive) {
+                            ensureActive()
                             if (isActive && !isReconnect) {
                                 emit(CONNECTION_STATE_CONNECTING)
                             }
@@ -750,20 +788,20 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             setAvChannelSid(mSID)
 
                             nGSID = IOTCAPIs.IOTC_Get_SessionID()
-
+                            ensureActive()
                             d(
                                 "startConnectJob",
-                                "===ThreadConnectDev retonline ing[$nGSID],devid[$uid]"
+                                "===ThreadConnectDev retonline ing gsid[$nGSID],devid[$uid] random=[$random]"
                             )
                             if (nGSID >= 0) {
                                 mSID = IOTCAPIs.IOTC_Connect_ByUID_Parallel(uid, nGSID)
                                 setAvChannelSid(mSID)
                                 d(
                                     "startConnectJob",
-                                    "===ThreadConnectDev retonline id[$mSID],devid[$uid]"
+                                    "===ThreadConnectDev retonline id sid[$mSID],devid[$uid] random=[$random]"
                                 )
                             }
-
+                            ensureActive()
                             when {
                                 mSID >= 0 -> {
                                     if (isActive) {
@@ -794,6 +832,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                     }
                                     break
                                 }
+                                mSID == IOTCAPIs.IOTC_ER_SESSION_IN_USE -> {
+                                    if (isActive) {
+                                        emit(CONNECTION_STATE_RECONENCT)
+                                    }
+                                    connecting = false
+                                    destory = true
+                                    break
+                                }
                                 else -> {
                                     if (isActive) {
                                         emit(CONNECTION_STATE_CONNECT_FAILED)
@@ -803,21 +849,29 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             }
                         }
                     }
+                    if (destory) {
+                        break
+                    }
                     first = false
 
                     if (mSID >= 0 && mSID != IOTC_CONNECT_ING) {
-                        d("startConnectJob", "start check dev status 111")
+                        d("startConnectJob", "start check dev status 111  random=[$random]")
                         delay(30000L)
-                        d("startConnectJob", "start check dev status 2222")
+                        ensureActive()
+                        d("startConnectJob", "start check dev status 2222  random=[$random]")
                         if (!connecting || !isActive) {
-                            d("startConnectJob", "start check dev status stop 111")
+                            d(
+                                "startConnectJob",
+                                "start check dev status stop 111  random=[$random]"
+                            )
                             break
                         }
                         if (mSID >= 0 && mSID != IOTC_CONNECT_ING) {
                             ret = IOTCAPIs.IOTC_Session_Check_Ex(mSID, stSInfoEx)
+                            ensureActive()
                             d(
                                 "startConnectJob",
-                                "ThreadCheckDevStatus status[$ret],[$uid]"
+                                "ThreadCheckDevStatus status[$ret],[$uid]  random=[$random]"
                             )
 
                             if (ret >= 0) {
@@ -848,10 +902,13 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                         }
                     }
 
-                    if(ret < 0 && mReconnectTime >= 1000 && connecting && isActive){
-                        Liotc.d("startConnectJob","reconnect [$mReconnectTime],[$ret]")
+                    if (ret < 0 && mReconnectTime >= 1000 && connecting && isActive) {
+                        Liotc.d(
+                            "startConnectJob",
+                            "reconnect [$mReconnectTime],[$ret] random=[$random]"
+                        )
                         delay(mReconnectTime)
-                        if(connecting && isActive){
+                        if (connecting && isActive) {
                             emit(IOTC_CONNECT_ING)
                         }
                         break
@@ -862,20 +919,21 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 //                if (nGSID >= 0) {
 //                    IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
 //                }
-                d("startConnectJob", "stopThread startConnectJob uid[$uid]")
+                d("startConnectJob", "stopThread startConnectJob uid[$uid] random=[$random]")
                 if (isActive) {
                     emit(-1)
                 }
             }.flowOn(Dispatchers.IO)
                 .collect {
-                    when(it){
-                        IOTC_CONNECT_ING->{
+                    when (it) {
+                        IOTC_CONNECT_ING -> {
+                            Liotc.d("startConnectJob", "startConnectJob reconnect 111 stop----")
                             reconnect(DEFAULT_AV_CHANNEL)
                         }
-                        -1->{
+                        -1 -> {
                             d("startConnectJob", "disconnect")
                         }
-                        else->{
+                        else -> {
                             broadCameraSessionStatus(it)
                         }
                     }
@@ -892,8 +950,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         if (nGSID >= 0) {
             IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
         }
+
         d("startConnectJob", "stopConnectJob time[${System.currentTimeMillis() - s}]")
         connectJob?.cancel()
+        connectJob = null
     }
 
     private fun setAvChannelSid(sid: Int) {
@@ -908,7 +968,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
      *开启 接收IO/发送IO的线程
      *
      **/
-    fun start(avChannel: Int, viewAccount: String, viewPasswd: String) {
+    fun start(avChannel: Int, viewAccount: String, viewPasswd: String, delayTime: Long = 500) {
 
         var channel: AVChannel? = null
         val iterator = mAVChannels.iterator()
@@ -921,12 +981,16 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
 
         if (channel == null) {
-            channel = AVChannel(avChannel, viewAccount, viewPasswd, uid, this)
+            channel = AVChannel(avChannel, viewAccount, viewPasswd, uid, this, this)
             channel.setSid(mSID)
             mAVChannels.add(channel)
+            d(TAG,"mAVChannels add  stop---------")
         }
-        channel.start()
+        d(TAG,"mAVChannels size=${mAVChannels.size} stop---------")
+        channel.start(delayTime)
     }
+
+    internal fun getSid() = mSID
 
     fun stop(avChannel: Int) {
         d("RecvAudioJob", "unInitAudioTrack releaseAudio stop stop")
@@ -971,12 +1035,17 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**开启视频直播*/
     @Synchronized
-    internal fun startShow(context: Context?, channel: Int,ratation:Int = 0,withYuv:Boolean = false) {
+    internal fun startShow(
+        context: Context?,
+        channel: Int,
+        ratation: Int = 0,
+        withYuv: Boolean = false
+    ) {
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
-                avChannel.startShow(context,ratation,withYuv)
+                avChannel.startShow(context, ratation, withYuv)
                 break
             }
         }
@@ -994,6 +1063,18 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
+    @Synchronized
+    internal fun changeQualityStopDecoderVideo(channel: Int, changeing: Boolean = false) {
+        val iterator = mAVChannels.iterator()
+        while (iterator.hasNext()) {
+            val avChannel = iterator.next()
+            if (avChannel.mChannel == channel) {
+                avChannel.changeQualityStopDecoderVideo(changeing)
+                break
+            }
+        }
+    }
+
     //设置音频播放
     @Synchronized
     internal fun setAudioTrackStatus(context: Context?, channel: Int, status: Boolean) {
@@ -1001,7 +1082,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
-                avChannel.setAudioTrackStatus(context, status,LocalRecordHelper.recording)
+                avChannel.setAudioTrackStatus(context, status, LocalRecordHelper.recording)
                 break
             }
         }
@@ -1075,7 +1156,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         alias: String?,
         tracks: Int,
         file: String?,
-        date:Long = System.currentTimeMillis()/1000
+        date: Long = System.currentTimeMillis() / 1000
     ) {
         if (name.isNullOrEmpty() || alias.isNullOrEmpty() || file.isNullOrEmpty() || mSendFileUri != null || !mSendFile.isNullOrEmpty()) {
             onAVChannelSendFileStatus(SendFileStatus.RDSENDER_STATE_STOP, 0, 0, 0)
@@ -1097,7 +1178,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         alias: String?,
         tracks: Int,
         file: Uri?,
-        date:Long = System.currentTimeMillis()/1000
+        date: Long = System.currentTimeMillis() / 1000
     ) {
         if (name.isNullOrEmpty() || alias.isNullOrEmpty() || file == null || mSendFileUri != null || !mSendFile.isNullOrEmpty()) {
             onAVChannelSendFileStatus(SendFileStatus.RDSENDER_STATE_STOP, 0, 0, 0)
@@ -1158,7 +1239,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         mDownloadDstFile = dstFile
         mDownloadFileContext = WeakReference(context)
         mDownloadSrcFile = srcFile
-//        mAvDownloadFileChannel = channelIndex
+        mAvDownloadFileChannel = channelIndex
         mDownloadDstUri = null
         sendDownloadFileOrder(channelIndex)
     }
@@ -1259,9 +1340,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     override fun onAVChannelStatus(channel: Int, status: Int) {
         broadCameraChannelInfo(channel, status)
     }
+
     private val OPT_AVChannelRecv = 5055
     override fun onAVChannelRecv(channel: Int, type: Int, data: ByteArray?) {
-        d("Monitor","onAVChannelRecv broadCameraReceiverIOCtrlData")
+        d("Monitor", "onAVChannelRecv broadCameraReceiverIOCtrlData")
 //        val message = handler.obtainMessage()
 //        val bundle = Bundle()
 //        bundle.putInt("channel",channel)
@@ -1286,7 +1368,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
     override fun onAVChannelReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long) {
-        broadCameraReceiverFrameData(channel, bitmap,time)
+        broadCameraReceiverFrameData(channel, bitmap, time)
     }
 
     override fun onAVChannelReceiverFrameInfo(
@@ -1356,5 +1438,9 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     override fun onTalkStatus(status: Boolean) {
         onAudioListener?.onTalkStatus(status)
+    }
+
+    override fun onAudioRecordVolume(volume: Double) {
+        onAudioListener?.onAudioRecordVolume(volume)
     }
 }

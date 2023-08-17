@@ -7,8 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.*
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
+import android.os.*
 import android.provider.MediaStore
 import android.util.AttributeSet
 import android.view.GestureDetector
@@ -134,6 +133,20 @@ class Monitor @JvmOverloads constructor(
     //surface 是否回调了destroy
     private var surfaceIsDestroy = true
 
+    private val OPT_CHANGE_VIDEO_QUALITY = 10
+
+    //是否切换了视频分辨率
+    private var isChangeVideoQuality = false
+
+    private val mHandler = object: Handler(Looper.myLooper()!!){
+        override fun handleMessage(msg: Message) {
+            super.handleMessage(msg)
+            if(msg.what == OPT_CHANGE_VIDEO_QUALITY){
+                changeQualityStopDecoderVideo(false)
+            }
+        }
+    }
+
     init {
         mSurHolder = holder
         mSurHolder?.addCallback(this)
@@ -142,8 +155,8 @@ class Monitor @JvmOverloads constructor(
         mGestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
-                    e1: MotionEvent?,
-                    e2: MotionEvent?,
+                    e1: MotionEvent,
+                    e2: MotionEvent,
                     velocityX: Float,
                     velocityY: Float
                 ): Boolean {
@@ -180,13 +193,19 @@ class Monitor @JvmOverloads constructor(
                 }
 
                 //双击
-                override fun onDoubleTap(e: MotionEvent?): Boolean {
+                override fun onDoubleTap(e: MotionEvent): Boolean {
                     Liotc.d("Monitor", "onDoubleTap")
                     if (mRectCanvas.left > 0 || mRectCanvas.right < nScreenWidth || mRectCanvas.top > 0 || mRectCanvas.bottom < nScreenHeight) {
                         _setFullScreen()
                     } else {
                         scaleToOrigin()
                     }
+                    return true
+                }
+
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    Liotc.d("Monitor", "onDoubleTap--onSingleTapConfirmed")
+                    mOnClickListener?.onClick(this@Monitor)
                     return true
                 }
             })
@@ -251,7 +270,12 @@ class Monitor @JvmOverloads constructor(
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
         mCamera?.onAudioListener = this
+        //先释放音频
+//        mCamera?.releaseAudio(avChannel)
+
         mAvChannel = avChannel
+        //释放音频
+        releaseAudio()
         mCamera?.setPlayMode(mAvChannel, mPlayMode)
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
@@ -319,6 +343,11 @@ class Monitor @JvmOverloads constructor(
         mCamera?.stopShow(mAvChannel)
     }
 
+    //切换分辨率的时候，停止解码视频
+    private fun changeQualityStopDecoderVideo(changeing:Boolean = false){
+//        mCamera?.changeQualityStopDecoderVideo(mAvChannel,changeing)
+    }
+
     /**监听*/
     fun setAudioListener(audioListener: AudioListener) {
         if (mVoiceType == VoiceType.ONE_WAY_VOICE && audioListener == AudioListener.UNMUTE) {
@@ -384,13 +413,19 @@ class Monitor @JvmOverloads constructor(
         mCamera?.getVideoQuality(mAvChannel)
     }
 
-    fun setMonitorVideoQuality(quality: VideoQuality) {
+    fun setMonitorVideoQuality(quality: VideoQuality,stopShow:Boolean = false) {
         if (mCamera?.isSessionConnected() == true) {
-//            if (isRecording) {
-//                stopRecord()
+//            if(stopShow){
+//                if (isRecording) {
+//                    stopRecord()
+//                }
+////                stopShow()
+//                changeQualityStopDecoderVideo(true)
 //            }
-//            stopShow()
-            mCamera?.setVideoQuality(mAvChannel, quality)
+//
+            if(mCamera?.setVideoQuality(mAvChannel, quality) == true){
+                changeQualityStopDecoderVideo(true)
+            }
 
         }
     }
@@ -422,28 +457,32 @@ class Monitor @JvmOverloads constructor(
                         if (!isThreadRunning()) {
                             break
                         }
-                        if (mLastFrame != null && mLastFrame?.isRecycled == false) {
-                            try {
-                                videoCanvas = mSurHolder?.lockCanvas()
-                                videoCanvas?.let { canvas ->
-                                    canvas.drawColor(Color.BLACK)
-                                    mLastFrame?.let { bitmap ->
-                                        Liotc.d("Monitor", "drawBitmap")
-                                        if(isThreadRunning()){
-                                            canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
+                        if (mLastFrame != null && mLastFrame?.isRecycled == false && !isChangeVideoQuality) {
+                            this@Monitor.mSurHolder?.let { surfaceHolder ->
+                                synchronized(surfaceHolder){
+                                    try {
+                                        videoCanvas = mSurHolder?.lockCanvas()
+                                        videoCanvas?.let { canvas ->
+                                            canvas.drawColor(Color.BLACK)
+                                            mLastFrame?.let { bitmap ->
+                                                Liotc.d("Monitor", "drawBitmap")
+                                                if(isThreadRunning()){
+                                                    canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
+                                                }
+                                            }
                                         }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
-                            } finally {
-                                videoCanvas?.let {
-                                    if (this@Monitor.canDraw) {
-                                        mSurHolder?.unlockCanvasAndPost(it)
-                                    }
-                                }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
+                                    } finally {
+                                        videoCanvas?.let {
+                                            if (this@Monitor.canDraw) {
+                                                mSurHolder?.unlockCanvasAndPost(it)
+                                            }
+                                        }
 
+                                    }
+                                }
                             }
                         }
                         Thread.sleep(33L)
@@ -530,6 +569,7 @@ class Monitor @JvmOverloads constructor(
     }
 
     fun onDestroy() {
+        mHandler.removeMessages(OPT_CHANGE_VIDEO_QUALITY)
         Liotc.d("Monitor", "onDestroy")
         Liotc.d("Monitor", "onStop-------")
         stopShow()
@@ -602,9 +642,9 @@ class Monitor @JvmOverloads constructor(
                         mPinchedMode = NONE
                     }
                     //点击事件
-                    if (_event.action == MotionEvent.ACTION_UP && System.currentTimeMillis() - mDownTime < 100) {
-                        mOnClickListener?.onClick(this)
-                    }
+//                    if (_event.action == MotionEvent.ACTION_UP && System.currentTimeMillis() - mDownTime < 100) {
+//                        mOnClickListener?.onClick(this)
+//                    }
 
                     if (nScreenWidth != 0 && nScreenHeight != 0) {
                         val cHeight = nScreenWidth * heightRation / widthRation
@@ -665,7 +705,9 @@ class Monitor @JvmOverloads constructor(
                 }
             }
         }
-        mGestureDetector?.onTouchEvent(event)
+        event?.let {evt->
+            mGestureDetector?.onTouchEvent(evt)
+        }
         return true
     }
 
@@ -788,6 +830,8 @@ class Monitor @JvmOverloads constructor(
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceIsDestroy = false
         canDraw = true
+
+
         Liotc.d("Monitor", "surfaceDestroyed surfaceCreated")
     }
 
@@ -830,7 +874,11 @@ class Monitor @JvmOverloads constructor(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Liotc.d("Monitor", "surfaceDestroyed 1")
+        this.mSurHolder?.let { surfaceHolder ->
+            synchronized(surfaceHolder){
 
+            }
+        }
         surfaceIsDestroy = true
         canDraw = false
         isRunning = false
@@ -853,7 +901,7 @@ class Monitor @JvmOverloads constructor(
                 "Monitor",
                 "receiveFrameData success [$avChannel],[$mAvChannel],[${bmp == null}]"
             )
-            mLastFrame = bmp
+
 
             if (mRenderJob == null || mRenderJob?.isActive != true || !isRunning) {
                 Liotc.d("Monitor", "restart render job")
@@ -863,8 +911,19 @@ class Monitor @JvmOverloads constructor(
 
             nScreenWidth = measuredWidth
             nScreenHeight = measuredHeight
+            if(mBitmapWidth != 0 && mBitmapHeight !=0){
+                isChangeVideoQuality = mBitmapWidth != bmp?.width || mBitmapHeight != bmp?.height
+                if(isChangeVideoQuality){
+                    //视频大小不同，说明切换了分辨率，这时候请求当前分辨率
+                    getMonitorVideoQuality()
+                }
+            }
             mBitmapWidth = bmp?.width ?: 0
             mBitmapHeight = bmp?.height ?: 0
+
+            mLastFrame = bmp
+
+
             if ((bmp?.width ?: 0) > 0 && (bmp?.height
                     ?: 0) > 0 && (nScreenHeight != mCurVideoHeight || nScreenWidth != mCurVideoWidth)
             ) {
@@ -992,10 +1051,13 @@ class Monitor @JvmOverloads constructor(
                         }
                     }
                 }
+//                mHandler.sendEmptyMessageDelayed(OPT_CHANGE_VIDEO_QUALITY,5000)
+//                changeQualityStopDecoderVideo(true)
 //                mCamera?.startShow(context, mAvChannel)
             }
         }
     }
+
 
     //拍照
     fun takePhoto() = mLastFrame
@@ -1033,7 +1095,7 @@ class Monitor @JvmOverloads constructor(
         } else {
             val file = File(path, name)
             FileOutputStream(file).use { fos ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 90, fos)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos)
                 fos.flush()
             }
             val contentResolver = context.contentResolver
@@ -1085,7 +1147,7 @@ class Monitor @JvmOverloads constructor(
         uri?.let {
             try {
                 contentResolver.openOutputStream(it)?.use { os ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 90, os)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, os)
                 }
                 return it
             } catch (e: Exception) {
@@ -1113,6 +1175,10 @@ class Monitor @JvmOverloads constructor(
 
     override fun onTalkStatus(status: Boolean) {
         onAudioListener?.onTalkStatus(status)
+    }
+
+    override fun onAudioRecordVolume(volume: Double) {
+        onAudioListener?.onAudioRecordVolume(volume)
     }
 }
 
