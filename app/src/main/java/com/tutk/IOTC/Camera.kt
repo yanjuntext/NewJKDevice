@@ -585,19 +585,24 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     fun connect(
         channel: Int = DEFAULT_AV_CHANNEL,
         account: String = "admin",
-        delayTime: Long = 2000L
+        delayTime: Long = 2000L,
+        setTime:Boolean = true
     ) {
         _connect(delayTime)
         start(channel, account, psw, delayTime)
         getSupportStream(channel)
         getAudioCodec(channel)
         getTimeZone(channel, must = true)
+        if(setTime){
+            setTime(channel, must = true)
+        }
     }
 
     fun reconnect(
         channel: Int = DEFAULT_AV_CHANNEL,
         account: String = "admin",
-        delayTime: Long = 2000L
+        delayTime: Long = 2000L,
+        setTime:Boolean = true
     ) {
         Liotc.d("startConnectJob", "startConnectJob reconnect stop---- $this")
         disconnect()
@@ -606,7 +611,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 //        obtainMessage.what = OPT_RECONNECT
 //        obtainMessage.obj = delayTime
 //        handler.sendMessageDelayed(obtainMessage,2000)
-        connect(channel, account, delayTime)
+        connect(channel, account, delayTime,setTime)
     }
 
 
