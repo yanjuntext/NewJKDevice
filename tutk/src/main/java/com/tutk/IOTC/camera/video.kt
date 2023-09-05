@@ -35,7 +35,8 @@ data class RecvVideoInfo(
     val onlineNm: Int = 0,
     val frameCount: Int = 0,
     val incompleteFrameCount: Int = 0,
-    val bitmap: Bitmap? = null
+    val bitmap: Bitmap? = null,
+    val deviceTime:Long = 0L
 )
 
 /**视频数据接收*/
@@ -75,7 +76,7 @@ class RecvVideoJob(
             onlineNm = online, frameCount = frameCount, incompleteFrameCount = nIncompleteFrmCount
         )
 
-    private fun getFrameBitmapInfo(bmp: Bitmap?) = RecvVideoInfo(-2, bitmap = bmp)
+    private fun getFrameBitmapInfo(bmp: Bitmap?,deviceTime: Long) = RecvVideoInfo(-2, bitmap = bmp, deviceTime = deviceTime)
 
 
     private fun requestIFrame() {
@@ -197,6 +198,7 @@ class RecvVideoJob(
                                     nReadSize,
                                     avChannel?.playMode?.value ?: PlayMode.PLAY_LIVE.value
                                 )
+                                d(TAG,"---codeId=${fram.codec_id.toInt()}")
                                 avChannel?.codeId = fram.codec_id.toInt()
                                 d(
                                     TAG,
@@ -224,7 +226,7 @@ class RecvVideoJob(
 
                                 nCodecId = fram.codec_id.toInt()
                                 nOnlineNumber = fram.onlineNum.toInt()
-
+                                d(TAG,"codeId=$nCodecId")
 
                                 when (nCodecId) {
                                     AVFrame.MEDIA_CODEC_VIDEO_H264,
@@ -266,7 +268,8 @@ class RecvVideoJob(
                                                     0,
                                                     nReadSize
                                                 )
-                                            emit(getFrameBitmapInfo(bmp))
+
+                                            emit(getFrameBitmapInfo(bmp,fram.deviceCurrentTime))
                                             avChannel?.lastFrame = bmp
                                         } catch (e: Exception) {
                                             e.printStackTrace()
@@ -393,7 +396,10 @@ class RecvVideoJob(
                         }
                         -2 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameData(
-                                avChannel?.mChannel ?: -1, it.bitmap
+                                avChannel?.mChannel ?: -1, it.bitmap,
+                            )
+                            iavChannelStatus?.onAVChannelReceiverFrameData(
+                                avChannel?.mChannel ?: -1, it.bitmap,it.deviceTime
                             )
                         }
                     }

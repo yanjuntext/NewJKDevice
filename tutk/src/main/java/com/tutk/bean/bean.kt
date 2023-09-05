@@ -309,6 +309,48 @@ data class TFeedPlan2(
 )
 
 /**
+ * 解析喂食计划 喂食计划详细信息
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ]
+ * @param result 类型 0=成功 other=失败
+ * @param type 类型 0=GET 1=SET
+ * @param number 喂食计划个数
+ * @param feedInfos 喂食计划信息
+ * @param names 喂食计划名称
+ */
+data class TFeedPlanWithName(
+    val result:Int,
+    val type: Int,
+    val number: Int,
+    val feedInfos: MutableList<TFeedPlanWithNameFeedInfo>,
+    val names: MutableList<String>
+){
+    fun isGet() = type == 0
+
+    fun isSuccess() = result == 0
+}
+
+/**
+ * 解析喂食计划 喂食计划详细信息
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ]
+ * @param week 喂食星期
+ * @param hour 喂食小时
+ * @param min 喂食分钟
+ * @param num 喂食重量
+ * @param enable 是否开启
+ * @param audio 喂食音频id
+ */
+data class TFeedPlanWithNameFeedInfo(
+    val week: Int,
+    val hour: Int,
+    val min: Int,
+    val num: Int,
+    val enable: Boolean,
+    val audio: Int
+)
+
+
+
+/**
  * 解析设备版本号
  * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SET_UPGRADEONLIN_RESP]
  *  @param type 0:仅检查check  1:仅升级system 2:仅升级ui 3:升级system and ui  7:仅升级mcu
@@ -376,11 +418,12 @@ data class TOsdGetStatus(val status: Boolean)
 data class TResetDevice(val result: Int) {
     fun isSuccess() = result == 0
 }
+
 /**
  *  [AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_RESP]
  * 低功耗设备模式切换
  */
-data class TNosLeep(val result: Int,val type:Int,val status: Boolean){
+data class TNosLeep(val result: Int, val type: Int, val status: Boolean) {
     fun isGet() = type == 0 && isSuccess()
     fun isSuccess() = result == 0
 }

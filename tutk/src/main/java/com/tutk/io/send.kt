@@ -4,9 +4,11 @@ import com.tutk.IOTC.AVIOCTRLDEFs
 import com.tutk.IOTC.Camera
 import com.tutk.IOTC.Liotc
 import com.tutk.IOTC.camera.VideoQuality
+import com.tutk.IOTC.littleByteArray
 import com.tutk.IOTC.status.*
 import com.tutk.bean.TEvent
 import com.tutk.bean.TFeedPlan2
+import com.tutk.bean.TFeedPlanWithNameFeedInfo
 import com.tutk.utils.getDiffMinute0Zone
 import java.util.*
 
@@ -413,7 +415,7 @@ fun Camera?.getTFCardRecordVideoList(
     endTime: Long, must: Boolean = false
 ): Boolean {
     if (startTime > endTime) {
-        throw  RuntimeException("startTime must be less than endTime")
+        throw RuntimeException("startTime must be less than endTime")
     }
     return if (canSend() || must) {
         this?.sendIOCtrl(
@@ -849,6 +851,21 @@ fun Camera?.manualFeed(channel: Int = Camera.DEFAULT_AV_CHANNEL, num: Int): Bool
 }
 
 /**
+ * 手动喂食
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_MANUAL_FEED_REQ]
+ */
+fun Camera?.manualFeed2(channel: Int = Camera.DEFAULT_AV_CHANNEL, num: Int,must: Boolean = false): Boolean {
+    return if (canSend() || must) {
+        this?.sendIOCtrl(
+            channel,
+            AVIOCTRLDEFs.IOTYPE_USER_IPCAM_MANUAL_FEED_REQ,
+            num.littleByteArray()
+        )
+        true
+    } else false
+}
+
+/**
  * 获取设备版本号、检查设备是否可以升级
  * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SET_UPGRADEONLIN_REQ]
  */
@@ -984,6 +1001,91 @@ fun Camera?.editFeedPlan2(
     } else false
 }
 
+
+/**
+ * 获取喂食计划  带名称的喂食计划
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ]
+ * */
+fun Camera?.getFeedPlanWithName(
+    channel: Int = Camera.DEFAULT_AV_CHANNEL,
+    must: Boolean = false
+): Boolean {
+    return if (canSend() || must) {
+        val data = ByteArray(648)
+        val type = 0.littleByteArray()
+        System.arraycopy(type, 0, data, 0, type.size)
+        this?.sendIOCtrl(
+            channel,
+            AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ,
+            data
+        )
+        true
+    } else false
+}
+
+
+/**
+ * 修改喂食计划  带名称的喂食计划
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ]
+ * */
+fun Camera?.editFeedPlanWithName(
+    channel: Int = Camera.DEFAULT_AV_CHANNEL,
+    planInfoList: MutableList<TFeedPlanWithNameFeedInfo>,
+    planInfoNameList: MutableList<String>,
+    must: Boolean = false
+): Boolean {
+    return if (canSend() || must) {
+        val data = ByteArray(648)
+        //类型
+        val type = 1.littleByteArray()
+        System.arraycopy(type, 0, data, 0, type.size)
+        //喂食计划个数
+        val total = planInfoList.size.littleByteArray()
+        System.arraycopy(total,0,data,4,total.size)
+        val offset = 8
+        val infoSize = 24
+        planInfoList.forEachIndexed { index, info ->
+            var start = index * infoSize + offset
+            val week = info.week.littleByteArray()
+            System.arraycopy(week,0,data,start,week.size)
+            start+=4
+            val hour = info.hour.littleByteArray()
+            System.arraycopy(hour,0,data,start,hour.size)
+
+            start+=4
+            val min = info.min.littleByteArray()
+            System.arraycopy(min,0,data,start,min.size)
+
+            start+=4
+            val num = info.num.littleByteArray()
+            System.arraycopy(num,0,data,start,num.size)
+
+            start+=4
+            val enable = (if(info.enable) 1 else 0).littleByteArray()
+            System.arraycopy(enable,0,data,start,enable.size)
+
+            start+=4
+            val audio = info.audio.littleByteArray()
+            System.arraycopy(audio,0,data,start,audio.size)
+        }
+
+        val nameOffset = infoSize * 10 + offset
+        val nameSize = 40
+        planInfoNameList.forEachIndexed { index, info ->
+            val start = nameSize * index + nameOffset
+            val name = info.toByteArray(Charsets.UTF_8)
+            System.arraycopy(name,0,data,start,if(name.size > nameSize) nameSize else name.size)
+        }
+
+        this?.sendIOCtrl(
+            channel,
+            AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ,
+            data
+        )
+        true
+    } else false
+}
+
 /**
  * wifi 信号强度
  * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GET_WIFI_SIGNAL_REQ]
@@ -1097,16 +1199,27 @@ fun Camera?.resetDevice(channel: Int = Camera.DEFAULT_AV_CHANNEL, must: Boolean 
  * 低功耗设备模式切换
  */
 fun Camera?.getNosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, must: Boolean = false): Boolean {
-    return nosLeep(channel,0,false,must)
+    return nosLeep(channel, 0, false, must)
 }
-fun Camera?.setNosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, status:Boolean,must: Boolean = false): Boolean {
-    return nosLeep(channel,1,status,must)
+
+fun Camera?.setNosLeep(
+    channel: Int = Camera.DEFAULT_AV_CHANNEL,
+    status: Boolean,
+    must: Boolean = false
+): Boolean {
+    return nosLeep(channel, 1, status, must)
 }
-private fun Camera?.nosLeep(channel: Int = Camera.DEFAULT_AV_CHANNEL, type: Int,status:Boolean,must: Boolean = false): Boolean {
+
+private fun Camera?.nosLeep(
+    channel: Int = Camera.DEFAULT_AV_CHANNEL,
+    type: Int,
+    status: Boolean,
+    must: Boolean = false
+): Boolean {
     return if (canSend() || must) {
         val data = ByteArray(2)
         data[0] = type.toByte()
-        data[1] = if(status) 1 else 0
+        data[1] = if (status) 1 else 0
         this?.sendIOCtrl(
             channel,
             AVIOCTRLDEFs.IOTYPE_USER_NOSLEEP_MODE_REQ,

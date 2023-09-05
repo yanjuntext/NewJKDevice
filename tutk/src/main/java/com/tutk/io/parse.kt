@@ -592,9 +592,52 @@ fun ByteArray?.parseFeedPlan2(): TFeedPlanInfo2? {
     return TFeedPlanInfo2(result, isGet, list = list as ArrayList<TFeedPlan2>)
 }
 
+
+/**
+ * 修改喂食计划  带名称的喂食计划
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_RESP]
+ * */
+fun ByteArray?.parseFeedPlanWithName():TFeedPlanWithName?{
+    this?:return null
+    kotlin.runCatching {
+        val result = littleInt(0)
+        val type = littleInt(4)
+        val num = littleInt(8)
+        val offset = 12
+        val infoSize = 24
+        val infos = mutableListOf<TFeedPlanWithNameFeedInfo>()
+        val names = mutableListOf<String>()
+        (0 until num).forEach { index->
+            val start = infoSize* index + offset
+            val week = littleInt(start)
+            val hour = littleInt(start + 4)
+            val minuter = littleInt(start + 8)
+            val number = littleInt(start + 12)
+            val enable = littleInt(start + 16) == 1
+            val audio = littleInt(start + 20)
+            infos.add(TFeedPlanWithNameFeedInfo(week,hour,minuter,number,enable, audio))
+            Liotc.d("parseFeedPlanWithName", "info=${infos[infos.size-1]}")
+        }
+        val nameOffset = infoSize * 10 + offset
+        val nameSize = 40
+        (0 until num).forEach {index->
+            val name = ByteArray(nameSize)
+            System.arraycopy(this,index* nameSize + nameOffset,name,0,nameSize)
+            names.add(name.getUtfString())
+            Liotc.d("parseFeedPlanWithName", "info name=${names[names.size-1]}")
+        }
+        Liotc.d("parseFeedPlanWithName", TFeedPlanWithName(result,type,num,infos,names).toString())
+        return TFeedPlanWithName(result,type,num,infos,names)
+    }.onFailure {
+        Liotc.d("parseFeedPlanWithName", "parse error=${it.message}")
+    }
+
+    return null
+}
+
 /**
  * 解析事件记录 设备主动推送过来的
- * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_DEVICE_USER_EVENT_REPORT]
+ * [AVIOCTRLDEFs.IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_RESP]
  */
 fun ByteArray?.parseEventReport(): TEventReport? {
     if (this == null) return null

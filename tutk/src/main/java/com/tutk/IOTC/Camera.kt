@@ -198,7 +198,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             mDefaultMaxCameraLimit = limit
         }
 
-        internal fun setCheck(check: Boolean) {
+        fun setCheck(check: Boolean) {
             IS_CHECK = check
         }
     }
@@ -586,14 +586,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         channel: Int = DEFAULT_AV_CHANNEL,
         account: String = "admin",
         delayTime: Long = 2000L,
-        setTime:Boolean = true
+        setTime: Boolean = true
     ) {
         _connect(delayTime)
         start(channel, account, psw, delayTime)
         getSupportStream(channel)
         getAudioCodec(channel)
         getTimeZone(channel, must = true)
-        if(setTime){
+        if (setTime) {
             setTime(channel, must = true)
         }
     }
@@ -602,7 +602,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         channel: Int = DEFAULT_AV_CHANNEL,
         account: String = "admin",
         delayTime: Long = 2000L,
-        setTime:Boolean = true
+        setTime: Boolean = true
     ) {
         Liotc.d("startConnectJob", "startConnectJob reconnect stop---- $this")
         disconnect()
@@ -611,7 +611,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 //        obtainMessage.what = OPT_RECONNECT
 //        obtainMessage.obj = delayTime
 //        handler.sendMessageDelayed(obtainMessage,2000)
-        connect(channel, account, delayTime,setTime)
+        connect(channel, account, delayTime, setTime)
     }
 
 
@@ -989,9 +989,9 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
             channel = AVChannel(avChannel, viewAccount, viewPasswd, uid, this, this)
             channel.setSid(mSID)
             mAVChannels.add(channel)
-            d(TAG,"mAVChannels add  stop---------")
+            d(TAG, "mAVChannels add  stop---------")
         }
-        d(TAG,"mAVChannels size=${mAVChannels.size} stop---------")
+        d(TAG, "mAVChannels size=${mAVChannels.size} stop---------")
         channel.start(delayTime)
     }
 

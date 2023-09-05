@@ -531,6 +531,48 @@ object AVIOCTRLDEFs {
     const val IOTYPE_USER_NOSLEEP_MODE_REQ = 0x5121
     const val IOTYPE_USER_NOSLEEP_MODE_RESP = 0x5122
 
+    /**
+     * 设置设备录音
+     * IOTYPE_USER_IPCAM_DEV_RECORD_REQ      = 0x5023,
+     * IOTYPE_USER_IPCAM_DEV_RECORD_RESP     = 0x5024,
+     *
+     * typedef struct
+     * {
+     * char type;
+     * char reserved[3];
+     * }SmsgAVIoctrlDevRecordReq;
+     *
+     * typedef struct
+     * {
+     * int result;
+     * char type;
+     * char reserved[3];
+     * }SmsgAVIoctrlDevRecordResp;
+     *
+     */
+    const val IOTYPE_USER_IPCAM_DEV_RECORD_REQ = 0x5023
+    const val IOTYPE_USER_IPCAM_DEV_RECORD_RESP = 0x5024
+
+    //定时喂食  https://docs.qq.com/doc/DZGFXTGRDbmRhd2tJ
+    const val IOTYPE_USER_IPCAM_TIMING_FEED_REQ = 0x5045
+    const val IOTYPE_USER_IPCAM_TIMING_FEED_RESP = 0x5046
+
+    //手动喂食  https://docs.qq.com/doc/DZGFXTGRDbmRhd2tJ
+    const val IOTYPE_USER_IPCAM_MANUAL_FEED_REQ = 0x5043
+    const val IOTYPE_USER_IPCAM_MANUAL_FEED_RESP = 0x5044
+
+    //云台控制   https://docs.qq.com/doc/DZGFXTGRDbmRhd2tJ
+    const val IOTYPE_USER_IPCAM_PTZ_CONTROL_REQ = 0x5047
+    const val IOTYPE_USER_IPCAM_PTZ_CONTROL_RESP = 0x5048
+
+
+    //https://docs.qq.com/doc/DZHFEUGVCVkhzdHFh 带喂食名称的喂食计划
+    const val IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_REQ = 0x504D
+    const val IOTYPE_USER_IPCAM_TIMING_FEED_AND_NAME_RESP = 0x504E
+
+    //0x504F-0x5050查询或设置堵粮功能  https://docs.qq.com/doc/DZG5naE16QW5YQmRy?&u=0b9ded774b7b4df7ab25ce6a6525828a
+    const val IOTYPE_USER_IPCAM_CHECK_OR_SET_FULL_ALARM_REQ = 0x504F
+    const val IOTYPE_USER_IPCAM_CHECK_OR_SET_FULL_ALARM_RESP = 0x5050
 
     /**-------------
      * Meoof 新协议

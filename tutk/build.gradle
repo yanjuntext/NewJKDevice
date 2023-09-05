@@ -43,11 +43,74 @@ android {
         main {
 //            jni.srcDirs = ['libs']
             jniLibs.srcDirs 'libs'
+//            jni.srcDirs = ['src/main/jniLibs']
         }
     }
     publishing {
         singleVariant("release")
     }
+
+//    libraryVariants.all{variant->
+//        variant.outputs.all{
+//            if (it.name.contains("release")) {
+//                def jniLibsDir = variant.getPackageLibraryProvider().get().jniFolders[0]
+//                packagingOptions {
+//                    // Pick the specific .so files you want to include or exclude if needed
+//                    pickFirst("$jniLibsDir/arm64-v8a/libAVAPIs.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libgpac.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libIOTCAPIs.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libjson-c.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libLibyuvUtils.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libLocalRecorder.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libMediaConvert.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libnewvideodecoder.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libRDTAPIs.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libsCHL.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libSLCAec.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libTUTKGlobalAPIs.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libwebrtc_android.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libwebrtc_jni.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libyuv.so")
+//                    pickFirst("$jniLibsDir/arm64-v8a/libyuv2rgb.so")
+//
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libAVAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libgpac.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libIOTCAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libjson-c.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libLibyuvUtils.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libLocalRecorder.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libMediaConvert.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libnewvideodecoder.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libRDTAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libsCHL.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libSLCAec.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libTUTKGlobalAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libwebrtc_android.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libwebrtc_jni.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libyuv.so")
+//                    pickFirst("$jniLibsDir/armeabi-v7a/libyuv2rgb.so")
+//
+//                    pickFirst("$jniLibsDir/armeabi/libAVAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi/libgpac.so")
+//                    pickFirst("$jniLibsDir/armeabi/libIOTCAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi/libjson-c.so")
+//                    pickFirst("$jniLibsDir/armeabi/libLibyuvUtils.so")
+//                    pickFirst("$jniLibsDir/armeabi/libLocalRecorder.so")
+//                    pickFirst("$jniLibsDir/armeabi/libMediaConvert.so")
+//                    pickFirst("$jniLibsDir/armeabi/libnewvideodecoder.so")
+//                    pickFirst("$jniLibsDir/armeabi/libRDTAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi/libsCHL.so")
+//                    pickFirst("$jniLibsDir/armeabi/libSLCAec.so")
+//                    pickFirst("$jniLibsDir/armeabi/libTUTKGlobalAPIs.so")
+//                    pickFirst("$jniLibsDir/armeabi/libwebrtc_android.so")
+//                    pickFirst("$jniLibsDir/armeabi/libwebrtc_jni.so")
+//                    pickFirst("$jniLibsDir/armeabi/libyuv.so")
+//                    pickFirst("$jniLibsDir/armeabi/libyuv2rgb.so")
+//
+//                }
+//            }
+//        }
+//    }
 
 
 }
