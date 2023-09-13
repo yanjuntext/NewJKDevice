@@ -494,8 +494,9 @@ class SendAudioJob(
     private var mLastVoiceType: VoiceType? = null
 
     private fun isTwoWayVoiceType() = avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE
-
+    //chIndexForSendAudio
     private var mSendAudioSessionIndex = -1
+    //avIndexForSendAudio
     private var mSendAudioChannelIndex = -1
 
 
@@ -884,7 +885,6 @@ class SendAudioJob(
                 if(isTwoWayVoiceType()){
                     if (mSendAudioChannelIndex >= 0) {
                         AVAPIs.avServExit(avChannel?.SID?:-1,mSendAudioChannelIndex)
-//                    AVAPIs.avServStop(mSendAudioChannelIndex)
                     }
                     if (mSendAudioSessionIndex >= 0) {
                         avChannel?.SID?.let { sid ->
@@ -893,7 +893,6 @@ class SendAudioJob(
                                 avChannel.IOCtrlQueue?.Enqueue(
                                     AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SPEAKERSTOP,
                                     startAudioInfo(mSendAudioChannelIndex)
-//                            AVIOCTRLDEFs.SMsgAVIoctrlAVStream.parseContent(mSendAudioChannelIndex)
                                 )
                             }
                         }

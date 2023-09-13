@@ -1,16 +1,26 @@
+
+/******************************************************************************
+ *                                                                            *
+ * Copyright (c) 2011 by TUTK Co.LTD. All Rights Reserved.                    *
+ *                                                                            *
+ *                                                                            *
+ * Class: St_RDT_Status.java                                                  *
+ *                                                                            *
+ * Author: cloud hsiao                                                        *
+ *                                                                            *
+ * Date: 2011-10-03                                                           *
+ *                                                                            *
+ ******************************************************************************/
+
 package com.tutk.IOTC;
 
 import androidx.annotation.Keep;
 
-/**
- * @Author: wangyj
- * @CreateDate: 2021/9/8
- * @Description:
- */
 @Keep
+//base on struct st_SInfo of IOTCAPIs.h
 public class St_RDT_Status {
-    public short Timeout;  //Keepalive timeout for how many seconds
-    public short TimeoutThreshold;  //when timeout reach this value will break RDT connection
-    public int BufSizeInSendQueue; //byte
-    public int BufSizeInRecvQueue; //byte
+	public short Timeout;  //Keepalive timeout for how many seconds
+	public short TimeoutThreshold;  //when timeout reach this value will break RDT connection
+	public int BufSizeInSendQueue; //byte
+	public int BufSizeInRecvQueue; //byte
 }

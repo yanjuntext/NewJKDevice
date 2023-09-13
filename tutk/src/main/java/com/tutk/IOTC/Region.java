@@ -1,10 +1,16 @@
+/**
+ * Region.java
+ *
+ * Copyright (c) by TUTK Co.LTD. All Rights Reserved.
+ */
 package com.tutk.IOTC;
 
+import androidx.annotation.Keep;
+
 /**
- * @Author: wangyj
- * @CreateDate: 2021/9/8
- * @Description:
- */
+* Enum the master region type that IOTCAPI supports.
+*/
+@Keep
 public enum Region {
     REGION_ALL(0),
     REGION_CN(1),

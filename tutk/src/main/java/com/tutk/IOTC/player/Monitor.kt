@@ -386,8 +386,10 @@ class Monitor @JvmOverloads constructor(
             context,
             mAvChannel,
             file,
-            if (mBitmapWidth <= 1280) 1280 else mBitmapWidth,
-            if (mBitmapHeight <= 720) 720 else mBitmapHeight
+            mBitmapWidth,
+            mBitmapHeight
+//            if (mBitmapWidth <= 1280) 1280 else mBitmapWidth,
+//            if (mBitmapHeight <= 720) 720 else mBitmapHeight
         ) { result ->
             isRecording = result == RecordStatus.RECORDING
             callback?.onResult(result)

@@ -1,14 +1,24 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (c) 2011 by TUTK Co.LTD. All Rights Reserved.                    *
+ *                                                                            *
+ *                                                                            *
+ * Class: VSaaSContractInfo                                                 *
+ *                                                                            *
+ * Author: Roger                                                              *
+ *                                                                            *
+ * Date: 2018/05/28                                                           *
+ *                                                                            *
+ ******************************************************************************/
+
 package com.tutk.IOTC;
 
 import androidx.annotation.Keep;
 
-/**
- * @Author: wangyj
- * @CreateDate: 2021/9/8
- * @Description:
- */
+//base on the struct VSaaSContractInfo in AVAPIs.h
 @Keep
-public class VSaaSContractInfo {
+public class VSaaSContractInfo
+{
     public int contract_type;
     public int vsaas_type;
     public int event_recording_max_sec;
@@ -17,3 +27,4 @@ public class VSaaSContractInfo {
     public int video_max_high;
     public int video_max_width;
 }
+

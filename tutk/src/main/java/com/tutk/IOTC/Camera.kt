@@ -837,14 +837,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                     }
                                     break
                                 }
-                                mSID == IOTCAPIs.IOTC_ER_SESSION_IN_USE -> {
-                                    if (isActive) {
-                                        emit(CONNECTION_STATE_RECONENCT)
-                                    }
-                                    connecting = false
-                                    destory = true
-                                    break
-                                }
+//                                mSID == IOTCAPIs.IOTC_ER_SESSION_IN_USE -> {
+//                                    if (isActive) {
+//                                        emit(CONNECTION_STATE_RECONENCT)
+//                                    }
+//                                    connecting = false
+//                                    destory = true
+//                                    break
+//                                }
                                 else -> {
                                     if (isActive) {
                                         emit(CONNECTION_STATE_CONNECT_FAILED)

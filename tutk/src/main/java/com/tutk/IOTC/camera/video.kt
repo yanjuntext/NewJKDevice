@@ -3,6 +3,8 @@ package com.tutk.IOTC.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaFormat
+import android.util.Log
 import com.decoder.util.DecMpeg4
 import com.jkapp.android.media.VideoDecoder
 import com.qxt.yuv420.LibyuvUtils
@@ -125,12 +127,19 @@ class RecvVideoJob(
                 val outFrmSize = IntArray(1)
                 val outFrmInfoBufSize = IntArray(1)
 
-
+                d(TAG, "start: RecvVideoJob start")
                 if (mSID >= 0 && getAvIndex() >= 0) {
+                    d(TAG, "start: RecvVideoJob clean buf 1")
                     AVAPIs.avClientCleanBuf(getAvIndex())
+                    d(TAG, "start: RecvVideoJob clean buf 2")
+//                    AVAPIs.avClientCleanLocalBuf(getAvIndex())
+//                    AVAPIs.avClientCleanLocalVideoBuf(getAvIndex())
                 }
+                d(TAG, "start: RecvVideoJob clean remove all 1")
 
                 avChannel?.VideoFrameQueue?.removeAll()
+                d(TAG, "start: RecvVideoJob clean remove all 2")
+
                 mNoFramIndex = 0
 
                 if (isRunning && isActive && getAvIndex() >= 0) {
@@ -284,19 +293,25 @@ class RecvVideoJob(
                             }
                             nReadSize == AVAPIs.AV_ER_DATA_NOREADY -> {
                                 delay(32)
+                                d(TAG,"-------------- mNoFramIndex=${mNoFramIndex}")
 //                                d(TAG, "AVAPIs.AV_ER_DATA_NOREADY mNoFramIndex[$mNoFramIndex]")
                                 if (mNoFramIndex >= 0) {
                                     mNoFramIndex++
                                     if (mNoFramIndex >= 35) {
+                                        d(TAG,"++++ mNoFramIndex=${mNoFramIndex}")
                                         if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
+                                            d(TAG,"*** mNoFramIndex=${mNoFramIndex}")
                                             //重新请求IFrame
                                             avChannel?.IOCtrlQueue?.Enqueue(
                                                 getAvIndex(), 511,
                                                 Packet.intToByteArray_Little(0)
                                             )
+                                            d(TAG,"### mNoFramIndex=${mNoFramIndex}")
                                             mNoFramIndex = 0
                                         }
                                     }
+
+                                    d(TAG,"###--- mNoFramIndex=${mNoFramIndex}")
                                 }
                             }
                             nReadSize == AVAPIs.AV_ER_MEM_INSUFF
@@ -696,9 +711,9 @@ class DecodeVideoJob(
 //                                            }
                                             out_size[0] = out_width[0] * out_height[0] * 2
 
-                                            d("out_size[${out_size[0]}],out_width[${out_width[0]}],out_height[${out_height[0]}]")
+                                            d("out_size[${out_size[0]}],out_width[${out_width[0]}],out_height[${out_height[0]}]videoDecodeResult=${videoDecodeResult}")
 
-                                            if (out_size[0] > 0 && out_height[0] > 0 && out_width[0] > 0 && videoDecodeResult >= 0) {
+                                            if (out_size[0] > 0 && out_height[0] > 0 && out_width[0] > 0 ) {
                                                 videoWidth = out_width[0]
                                                 videoHeight = out_height[0]
 
@@ -959,8 +974,9 @@ internal object LocalRecordHelper {
         }
 
         if (avChannel == null || (avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_H265
-                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_H264)
-        ) {
+                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_H264
+                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG
+                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_MPEG4)) {
             d(TAG, "don't record because avChannel is null [${avChannel?.codeId}]")
             onResultCallback?.onResult(RecordStatus.VIDEO_CODEC_NULL)
             return
@@ -992,6 +1008,8 @@ internal object LocalRecordHelper {
         val codeId = when (mAvChannel?.get()?.codeId) {
             AVFrame.MEDIA_CODEC_VIDEO_H264 -> AVFrame.MEDIA_CODEC_VIDEO_H264
             AVFrame.MEDIA_CODEC_VIDEO_H265 -> AVFrame.MEDIA_CODEC_VIDEO_H265
+            AVFrame.MEDIA_CODEC_VIDEO_MJPEG-> AVFrame.MEDIA_CODEC_VIDEO_MJPEG
+            AVFrame.MEDIA_CODEC_VIDEO_MPEG4-> AVFrame.MEDIA_CODEC_VIDEO_MPEG4
             else -> null
         }
 
