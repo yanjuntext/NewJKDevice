@@ -524,7 +524,7 @@ internal class DownFileJob(
                 DownLoadFileStatus.DOWNLOAD_STATE_HAD_DOWNLOAD,
                 0,
                 0,
-                0
+                0,dstFile,null
             )
             return
         }
@@ -535,7 +535,8 @@ internal class DownFileJob(
                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                 0,
                 0,
-                0
+                0,
+                dstFile,null
             )
             return
         }
@@ -807,12 +808,7 @@ internal class DownFileJob(
             }.flowOn(Dispatchers.IO)
                 .collect {
                     d("collect iavChannelStatus[${iavChannelStatus == null}]")
-                    iavChannelStatus?.onAVChanneldownloadFileStatus(
-                        it.status,
-                        it.total.toInt(),
-                        it.downloadTotal.toInt(),
-                        it.progress
-                    )
+
                     iavChannelStatus?.onAVChanneldownloadFileStatus(
                         it.status,
                         it.total.toInt(),
@@ -833,7 +829,8 @@ internal class DownFileJob(
                 DownLoadFileStatus.DOWNLOAD_STATE_HAD_DOWNLOAD,
                 0,
                 0,
-                0
+                0, null,
+                dstUri = dstUri
             )
             return
         }
@@ -1117,12 +1114,7 @@ internal class DownFileJob(
             }.flowOn(Dispatchers.IO)
                 .collect {
 
-                    iavChannelStatus?.onAVChanneldownloadFileStatus(
-                        it.status,
-                        it.total.toInt(),
-                        it.downloadTotal.toInt(),
-                        it.progress
-                    )
+
                     iavChannelStatus?.onAVChanneldownloadFileStatus(
                         it.status,
                         it.total.toInt(),

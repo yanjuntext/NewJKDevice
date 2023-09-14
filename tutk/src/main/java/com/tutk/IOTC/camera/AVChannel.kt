@@ -495,14 +495,7 @@ interface IAVChannelListener {
     /**文件发送状态*/
     fun onAVChannelSendFileStatus(status: SendFileStatus, total: Int, sendTotal: Int, progress: Int)
 
-    /**文件下载状态*/
-    @Deprecated("please use with dsiFilePath and dstUri method")
-    fun onAVChanneldownloadFileStatus(
-        status: DownLoadFileStatus,
-        total: Int,
-        downloadTotal: Int,
-        progress: Int
-    )
+
 
     fun onAVChanneldownloadFileStatus(
         status: DownLoadFileStatus,

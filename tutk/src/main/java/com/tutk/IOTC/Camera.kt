@@ -1238,7 +1238,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun downFile(context: Context?, channelIndex: Int, srcFile: String?, dstFile: String?) {
         if (srcFile.isNullOrEmpty() || dstFile.isNullOrEmpty() || !mDownloadDstFile.isNullOrEmpty() || mDownloadDstUri != null || !mDownloadSrcFile.isNullOrEmpty()) {
-            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0)
+            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,dstFile,null)
             return
         }
         mDownloadDstFile = dstFile
@@ -1256,7 +1256,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun downFile(context: Context?, channelIndex: Int, srcFile: String?, dstUri: Uri?) {
         if (srcFile.isNullOrEmpty() || dstUri == null || !mDownloadDstFile.isNullOrEmpty() || mDownloadDstUri != null || !mDownloadSrcFile.isNullOrEmpty()) {
-            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0)
+            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,null,dstUri)
             return
         }
         mDownloadDstUri = dstUri
@@ -1413,30 +1413,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    override fun onAVChanneldownloadFileStatus(
-        status: DownLoadFileStatus,
-        total: Int,
-        downloadTotal: Int,
-        progress: Int
-    ) {
-        onAVChanneldownloadFileStatus(status, total, downloadTotal, progress,null,null)
-//        d(TAG, "onAVChanneldownloadFileStatus[${mDownloadFileStatusCallbacks.size}]")
-//        val iterator = mDownloadFileStatusCallbacks.iterator()
-//        while (iterator.hasNext()) {
-//            iterator.next()?.onAvChannelDownloadFileStatus(status, total, downloadTotal, progress)
-//        }
-//        if (status == DownLoadFileStatus.DOWNLOAD_STATE_FINISH
-//            || status == DownLoadFileStatus.DOWNLOAD_STATE_CANCEL
-//            || status == DownLoadFileStatus.DOWNLOAD_STATE_CLOSED
-//            || status == DownLoadFileStatus.DOWNLOAD_STATE_ERROR
-//        ) {
-//            mDownloadDstFile = null
-//            mDownloadDstUri = null
-//            mDownloadSrcFile = null
-//            mAvDownloadFileChannel = null
-//            mDownloadFileContext = null
-//        }
-    }
+
 
     override fun onAVChanneldownloadFileStatus(
         status: DownLoadFileStatus,
