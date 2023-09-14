@@ -486,7 +486,9 @@ internal data class DownLoadInfo(
     val status: DownLoadFileStatus,
     val total: Long,
     val downloadTotal: Long,
-    val progress: Int
+    val progress: Int,
+    val dstFilePath:String? = null,
+    val dstUri:Uri? = null
 )
 
 /**文件下载*/
@@ -585,7 +587,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstFile
                                             )
                                         )
                                     }
@@ -608,7 +611,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstFile
                                             )
                                         )
                                     }
@@ -644,7 +648,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstFile
                                             )
                                         )
                                     }
@@ -663,7 +668,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstFile
                                             )
                                         )
                                     }
@@ -679,7 +685,8 @@ internal class DownFileJob(
                                                     DownLoadFileStatus.DOWNLOAD_STATE_START,
                                                     total,
                                                     0,
-                                                    0
+                                                    0,
+                                                    dstFile
                                                 )
                                             )
                                         }
@@ -707,7 +714,8 @@ internal class DownFileJob(
                                                         DownLoadFileStatus.DOWNLOAD_STATE_SENDING,
                                                         total,
                                                         readTotal,
-                                                        (readTotal * 1.0 / total * 100).toInt()
+                                                        (readTotal * 1.0 / total * 100).toInt(),
+                                                        dstFile
                                                     )
                                                 )
                                             }
@@ -720,7 +728,8 @@ internal class DownFileJob(
                                                         DownLoadFileStatus.DOWNLOAD_STATE_FINISH,
                                                         total,
                                                         readTotal,
-                                                        (readTotal * 1.0 / total * 100).toInt()
+                                                        (readTotal * 1.0 / total * 100).toInt(),
+                                                        dstFile
                                                     )
                                                 )
                                             } else {
@@ -729,7 +738,8 @@ internal class DownFileJob(
                                                         DownLoadFileStatus.DOWNLOAD_STATE_CANCEL,
                                                         total,
                                                         readTotal,
-                                                        (readTotal * 1.0 / total * 100).toInt()
+                                                        (readTotal * 1.0 / total * 100).toInt(),
+                                                        dstFile
                                                     )
                                                 )
                                             }
@@ -752,14 +762,15 @@ internal class DownFileJob(
                                         DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                         0,
                                         0,
-                                        0
+                                        0,
+                                        dstFile
                                     )
                                 )
                             }
 
                         }
                     } else {
-                        emit(DownLoadInfo(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0))
+                        emit(DownLoadInfo(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,dstFile))
                     }
                 } else {
                     if (isActive()) {
@@ -768,7 +779,8 @@ internal class DownFileJob(
                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                 total,
                                 readTotal,
-                                0
+                                0,
+                                dstFile
                             )
                         )
                     }
@@ -785,7 +797,8 @@ internal class DownFileJob(
                             DownLoadFileStatus.DOWNLOAD_STATE_CLOSED,
                             total,
                             readTotal,
-                            if (total > 0) ((readTotal * 1.0 / total * 100).toInt()) else 0
+                            if (total > 0) ((readTotal * 1.0 / total * 100).toInt()) else 0,
+                            dstFile
                         )
                     )
                 }
@@ -799,6 +812,14 @@ internal class DownFileJob(
                         it.total.toInt(),
                         it.downloadTotal.toInt(),
                         it.progress
+                    )
+                    iavChannelStatus?.onAVChanneldownloadFileStatus(
+                        it.status,
+                        it.total.toInt(),
+                        it.downloadTotal.toInt(),
+                        it.progress,
+                        it.dstFilePath,
+                        it.dstUri
                     )
                 }
         }
@@ -822,7 +843,9 @@ internal class DownFileJob(
                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                 0,
                 0,
-                0
+                0,
+                null,
+                dstUri = dstUri
             )
             return
         }
@@ -871,7 +894,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstUri = dstUri
                                             )
                                         )
                                     }
@@ -895,7 +919,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstUri = dstUri
                                             )
                                         )
                                     }
@@ -929,7 +954,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstUri = dstUri
                                             )
                                         )
                                     }
@@ -948,7 +974,8 @@ internal class DownFileJob(
                                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                                 0,
                                                 0,
-                                                0
+                                                0,
+                                                dstUri = dstUri
                                             )
                                         )
                                     }
@@ -966,7 +993,8 @@ internal class DownFileJob(
                                                             DownLoadFileStatus.DOWNLOAD_STATE_START,
                                                             total,
                                                             0,
-                                                            0
+                                                            0,
+                                                            dstUri = dstUri
                                                         )
                                                     )
                                                 }
@@ -994,7 +1022,8 @@ internal class DownFileJob(
                                                                 DownLoadFileStatus.DOWNLOAD_STATE_SENDING,
                                                                 total,
                                                                 readTotal,
-                                                                (readTotal * 1.0 / total * 100).toInt()
+                                                                (readTotal * 1.0 / total * 100).toInt(),
+                                                                dstUri = dstUri
                                                             )
                                                         )
                                                     }
@@ -1007,7 +1036,8 @@ internal class DownFileJob(
                                                                 DownLoadFileStatus.DOWNLOAD_STATE_FINISH,
                                                                 total,
                                                                 readTotal,
-                                                                (readTotal * 1.0 / total * 100).toInt()
+                                                                (readTotal * 1.0 / total * 100).toInt(),
+                                                                dstUri = dstUri
                                                             )
                                                         )
                                                     } else {
@@ -1016,7 +1046,8 @@ internal class DownFileJob(
                                                                 DownLoadFileStatus.DOWNLOAD_STATE_CANCEL,
                                                                 total,
                                                                 readTotal,
-                                                                (readTotal * 1.0 / total * 100).toInt()
+                                                                (readTotal * 1.0 / total * 100).toInt(),
+                                                                dstUri = dstUri
                                                             )
                                                         )
                                                     }
@@ -1039,14 +1070,16 @@ internal class DownFileJob(
                                         DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                         0,
                                         0,
-                                        0
+                                        0,
+                                        dstUri = dstUri
                                     )
                                 )
                             }
 
                         }
                     } else {
-                        emit(DownLoadInfo(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0))
+                        emit(DownLoadInfo(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,
+                            dstUri = dstUri))
                     }
                 } else {
                     if (isActive()) {
@@ -1055,7 +1088,8 @@ internal class DownFileJob(
                                 DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
                                 total,
                                 readTotal,
-                                0
+                                0,
+                                dstUri = dstUri
                             )
                         )
                     }
@@ -1072,7 +1106,8 @@ internal class DownFileJob(
                             DownLoadFileStatus.DOWNLOAD_STATE_CLOSED,
                             total,
                             readTotal,
-                            if (total > 0) ((readTotal * 1.0 / total * 100).toInt()) else 0
+                            if (total > 0) ((readTotal * 1.0 / total * 100).toInt()) else 0,
+                            dstUri = dstUri
                         )
                     )
                 }
@@ -1087,6 +1122,14 @@ internal class DownFileJob(
                         it.total.toInt(),
                         it.downloadTotal.toInt(),
                         it.progress
+                    )
+                    iavChannelStatus?.onAVChanneldownloadFileStatus(
+                        it.status,
+                        it.total.toInt(),
+                        it.downloadTotal.toInt(),
+                        it.progress,
+                        it.dstFilePath,
+                        it.dstUri
                     )
                 }
         }

@@ -1419,10 +1419,37 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         downloadTotal: Int,
         progress: Int
     ) {
+        onAVChanneldownloadFileStatus(status, total, downloadTotal, progress,null,null)
+//        d(TAG, "onAVChanneldownloadFileStatus[${mDownloadFileStatusCallbacks.size}]")
+//        val iterator = mDownloadFileStatusCallbacks.iterator()
+//        while (iterator.hasNext()) {
+//            iterator.next()?.onAvChannelDownloadFileStatus(status, total, downloadTotal, progress)
+//        }
+//        if (status == DownLoadFileStatus.DOWNLOAD_STATE_FINISH
+//            || status == DownLoadFileStatus.DOWNLOAD_STATE_CANCEL
+//            || status == DownLoadFileStatus.DOWNLOAD_STATE_CLOSED
+//            || status == DownLoadFileStatus.DOWNLOAD_STATE_ERROR
+//        ) {
+//            mDownloadDstFile = null
+//            mDownloadDstUri = null
+//            mDownloadSrcFile = null
+//            mAvDownloadFileChannel = null
+//            mDownloadFileContext = null
+//        }
+    }
+
+    override fun onAVChanneldownloadFileStatus(
+        status: DownLoadFileStatus,
+        total: Int,
+        downloadTotal: Int,
+        progress: Int,
+        dstFilePath: String?,
+        dstUri: Uri?
+    ) {
         d(TAG, "onAVChanneldownloadFileStatus[${mDownloadFileStatusCallbacks.size}]")
         val iterator = mDownloadFileStatusCallbacks.iterator()
         while (iterator.hasNext()) {
-            iterator.next()?.onAvChannelDownloadFileStatus(status, total, downloadTotal, progress)
+            iterator.next()?.onAvChannelDownloadFileStatus(status, total, downloadTotal, progress,dstFilePath,dstUri)
         }
         if (status == DownLoadFileStatus.DOWNLOAD_STATE_FINISH
             || status == DownLoadFileStatus.DOWNLOAD_STATE_CANCEL
