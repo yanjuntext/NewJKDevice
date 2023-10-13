@@ -213,7 +213,7 @@ class Monitor @JvmOverloads constructor(
 
     /**设置充满全屏*/
     private fun _setFullScreen() {
-        Liotc.d("Monitor", "_setFullScreen 1")
+        Liotc.d("Monitor", "_setFullScreen 1 wr=${widthRation} hr=${heightRation}")
         if (nScreenWidth != 0 && nScreenHeight != 0) {
             Liotc.d("Monitor", "_setFullScreen 2")
             isFullScreen = false
@@ -236,6 +236,10 @@ class Monitor @JvmOverloads constructor(
     /**设置充满全屏*/
     fun setFullScreen() {
         isFullScreen = true
+    }
+
+    fun setNowFullScreen(){
+        _setFullScreen()
     }
 
     /**缩放至原始大小*/
@@ -307,6 +311,7 @@ class Monitor @JvmOverloads constructor(
     fun setWidthHeightRation(widthRation: Int, heightRation: Int) {
         this.widthRation = widthRation
         this.heightRation = heightRation
+        Liotc.d("Monitor","setWidthHeightRation wr=${this.widthRation} hr=${this.heightRation}")
     }
 
     /**
@@ -840,7 +845,7 @@ class Monitor @JvmOverloads constructor(
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         Liotc.d(
             "Monitor",
-            "surfaceChanged [screen[$nScreenWidth,$nScreenHeight]],[surface[$width,$height]],measured[$measuredWidth,$measuredHeight]"
+            "surfaceChanged [screen[$nScreenWidth,$nScreenHeight]],[surface[$width,$height]],measured[$measuredWidth,$measuredHeight],wr=${widthRation} hr=${heightRation}"
         )
         synchronized(this) {
             nScreenWidth = measuredWidth
@@ -962,6 +967,10 @@ class Monitor @JvmOverloads constructor(
                 _setFullScreen()
             }
         }
+    }
+
+    override fun receiveFrameDataTime(time: Long) {
+
     }
 
     override fun receiveFrameInfo(

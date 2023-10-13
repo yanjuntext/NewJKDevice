@@ -953,6 +953,10 @@ class MonitorVer @JvmOverloads constructor(
         }
     }
 
+    override fun receiveFrameDataTime(time: Long) {
+
+    }
+
     override fun receiveFrameInfo(
         camera: Camera?,
         avChannel: Int,

@@ -14,6 +14,8 @@ interface OnFrameCallback {
 
     fun receiveFrameData(camera: Camera?,avChannel: Int,bmp: Bitmap?,time:Long)
 
+    fun receiveFrameDataTime(time: Long)
+
     fun receiveFrameInfo(
         camera: Camera?,
         avChannel: Int,

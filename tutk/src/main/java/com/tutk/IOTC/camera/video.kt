@@ -38,8 +38,9 @@ data class RecvVideoInfo(
     val frameCount: Int = 0,
     val incompleteFrameCount: Int = 0,
     val bitmap: Bitmap? = null,
-    val deviceTime:Long = 0L
-)
+    val deviceTime: Long = 0L,
+
+    )
 
 /**视频数据接收*/
 class RecvVideoJob(
@@ -78,9 +79,11 @@ class RecvVideoJob(
             onlineNm = online, frameCount = frameCount, incompleteFrameCount = nIncompleteFrmCount
         )
 
-    private fun getFrameBitmapInfo(bmp: Bitmap?,deviceTime: Long) = RecvVideoInfo(-2, bitmap = bmp, deviceTime = deviceTime)
+    private fun getFrameBitmapInfo(bmp: Bitmap?, deviceTime: Long) =
+        RecvVideoInfo(-2, bitmap = bmp, deviceTime = deviceTime)
 
-
+    private fun getFrameTimeInfo( deviceTime: Long) =
+        RecvVideoInfo(-3, deviceTime = deviceTime)
     private fun requestIFrame() {
         if (isRunning && isActive() && getAvIndex() >= 0) {
             d(TAG, "发送511命令")
@@ -130,14 +133,14 @@ class RecvVideoJob(
                 d(TAG, "start: RecvVideoJob start")
                 if (mSID >= 0 && getAvIndex() >= 0) {
                     d(TAG, "start: RecvVideoJob clean buf 1")
-                    AVAPIs.avClientCleanBuf(getAvIndex())
+//                    AVAPIs.avClientCleanBuf(getAvIndex())
                     d(TAG, "start: RecvVideoJob clean buf 2")
 //                    AVAPIs.avClientCleanLocalBuf(getAvIndex())
 //                    AVAPIs.avClientCleanLocalVideoBuf(getAvIndex())
                 }
                 d(TAG, "start: RecvVideoJob clean remove all 1")
 
-                avChannel?.VideoFrameQueue?.removeAll()
+//                avChannel?.VideoFrameQueue?.removeAll()
                 d(TAG, "start: RecvVideoJob clean remove all 2")
 
                 mNoFramIndex = 0
@@ -207,7 +210,8 @@ class RecvVideoJob(
                                     nReadSize,
                                     avChannel?.playMode?.value ?: PlayMode.PLAY_LIVE.value
                                 )
-                                d(TAG,"---codeId=${fram.codec_id.toInt()}")
+                                emit(getFrameTimeInfo(fram.deviceCurrentTime))
+                                d(TAG, "---codeId=${fram.codec_id.toInt()}")
                                 avChannel?.codeId = fram.codec_id.toInt()
                                 d(
                                     TAG,
@@ -235,7 +239,7 @@ class RecvVideoJob(
 
                                 nCodecId = fram.codec_id.toInt()
                                 nOnlineNumber = fram.onlineNum.toInt()
-                                d(TAG,"codeId=$nCodecId")
+                                d(TAG, "codeId=$nCodecId")
 
                                 when (nCodecId) {
                                     AVFrame.MEDIA_CODEC_VIDEO_H264,
@@ -277,8 +281,8 @@ class RecvVideoJob(
                                                     0,
                                                     nReadSize
                                                 )
-
-                                            emit(getFrameBitmapInfo(bmp,fram.deviceCurrentTime))
+                                            d(TAG,"MEDIA_CODEC_VIDEO_MJPEG bmp----")
+                                            emit(getFrameBitmapInfo(bmp, fram.deviceCurrentTime))
                                             avChannel?.lastFrame = bmp
                                         } catch (e: Exception) {
                                             e.printStackTrace()
@@ -293,25 +297,25 @@ class RecvVideoJob(
                             }
                             nReadSize == AVAPIs.AV_ER_DATA_NOREADY -> {
                                 delay(32)
-                                d(TAG,"-------------- mNoFramIndex=${mNoFramIndex}")
+                                d(TAG, "-------------- mNoFramIndex=${mNoFramIndex}")
 //                                d(TAG, "AVAPIs.AV_ER_DATA_NOREADY mNoFramIndex[$mNoFramIndex]")
                                 if (mNoFramIndex >= 0) {
                                     mNoFramIndex++
                                     if (mNoFramIndex >= 35) {
-                                        d(TAG,"++++ mNoFramIndex=${mNoFramIndex}")
+                                        d(TAG, "++++ mNoFramIndex=${mNoFramIndex}")
                                         if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
-                                            d(TAG,"*** mNoFramIndex=${mNoFramIndex}")
+                                            d(TAG, "*** mNoFramIndex=${mNoFramIndex}")
                                             //重新请求IFrame
                                             avChannel?.IOCtrlQueue?.Enqueue(
                                                 getAvIndex(), 511,
                                                 Packet.intToByteArray_Little(0)
                                             )
-                                            d(TAG,"### mNoFramIndex=${mNoFramIndex}")
+                                            d(TAG, "### mNoFramIndex=${mNoFramIndex}")
                                             mNoFramIndex = 0
                                         }
                                     }
 
-                                    d(TAG,"###--- mNoFramIndex=${mNoFramIndex}")
+                                    d(TAG, "###--- mNoFramIndex=${mNoFramIndex}")
                                 }
                             }
                             nReadSize == AVAPIs.AV_ER_MEM_INSUFF
@@ -345,7 +349,7 @@ class RecvVideoJob(
                                         }
                                         AVFrame.MEDIA_CODEC_VIDEO_H264,
                                         AVFrame.MEDIA_CODEC_VIDEO_H265 -> {
-                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt()  == 0) {
+                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
                                                 nIncompleteFrmCount++
                                             } else {
                                                 val frame = AVFrame(
@@ -414,8 +418,11 @@ class RecvVideoJob(
                                 avChannel?.mChannel ?: -1, it.bitmap,
                             )
                             iavChannelStatus?.onAVChannelReceiverFrameData(
-                                avChannel?.mChannel ?: -1, it.bitmap,it.deviceTime
+                                avChannel?.mChannel ?: -1, it.bitmap, it.deviceTime
                             )
+                        }
+                        -3->{
+                            iavChannelStatus?.onAVChannelReceiverFrameDataTime(it.deviceTime)
                         }
                     }
                 }
@@ -713,7 +720,7 @@ class DecodeVideoJob(
 
                                             d("out_size[${out_size[0]}],out_width[${out_width[0]}],out_height[${out_height[0]}]videoDecodeResult=${videoDecodeResult}")
 
-                                            if (out_size[0] > 0 && out_height[0] > 0 && out_width[0] > 0 ) {
+                                            if (out_size[0] > 0 && out_height[0] > 0 && out_width[0] > 0) {
                                                 videoWidth = out_width[0]
                                                 videoHeight = out_height[0]
 
@@ -976,7 +983,8 @@ internal object LocalRecordHelper {
         if (avChannel == null || (avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_H265
                     && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_H264
                     && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG
-                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_MPEG4)) {
+                    && avChannel.codeId != AVFrame.MEDIA_CODEC_VIDEO_MPEG4)
+        ) {
             d(TAG, "don't record because avChannel is null [${avChannel?.codeId}]")
             onResultCallback?.onResult(RecordStatus.VIDEO_CODEC_NULL)
             return
@@ -1008,8 +1016,8 @@ internal object LocalRecordHelper {
         val codeId = when (mAvChannel?.get()?.codeId) {
             AVFrame.MEDIA_CODEC_VIDEO_H264 -> AVFrame.MEDIA_CODEC_VIDEO_H264
             AVFrame.MEDIA_CODEC_VIDEO_H265 -> AVFrame.MEDIA_CODEC_VIDEO_H265
-            AVFrame.MEDIA_CODEC_VIDEO_MJPEG-> AVFrame.MEDIA_CODEC_VIDEO_MJPEG
-            AVFrame.MEDIA_CODEC_VIDEO_MPEG4-> AVFrame.MEDIA_CODEC_VIDEO_MPEG4
+            AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> AVFrame.MEDIA_CODEC_VIDEO_MJPEG
+            AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> AVFrame.MEDIA_CODEC_VIDEO_MPEG4
             else -> null
         }
 

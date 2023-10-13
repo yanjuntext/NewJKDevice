@@ -731,6 +731,12 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
+    private fun broadCameraReceiverFrameDataTime(time: Long) {
+        val iterator = mOnFrameCallbacks.iterator()
+        while (iterator.hasNext()) {
+            iterator.next().receiveFrameDataTime(time)
+        }
+    }
 
     private fun broadCameraReceiverFrameInfo(
         channel: Int,
@@ -799,7 +805,15 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                 "===ThreadConnectDev retonline ing gsid[$nGSID],devid[$uid] random=[$random]"
                             )
                             if (nGSID >= 0) {
+                                //旧设备连接方式
                                 mSID = IOTCAPIs.IOTC_Connect_ByUID_Parallel(uid, nGSID)
+                                //新设备需要使用AUTHKEY才可以连接
+//                                val input = St_IOTCConnectInput()
+//                                input.authenticationType = 0
+//                                input.authKey = "00000000"
+//                                input.timeout = 10
+//                                mSID = IOTCAPIs.IOTC_Connect_ByUIDEx(uid, nGSID, input)
+
                                 setAvChannelSid(mSID)
                                 d(
                                     "startConnectJob",
@@ -821,7 +835,8 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
                                     delay(1000L)
                                 }
-                                (mSID == IOTCAPIs.IOTC_ER_UNKNOWN_DEVICE) || (mSID == IOTCAPIs.IOTC_ER_UNLICENSE)
+                                (mSID == IOTCAPIs.IOTC_ER_UNKNOWN_DEVICE)
+                                        || (mSID == IOTCAPIs.IOTC_ER_UNLICENSE)
                                         || (mSID == IOTCAPIs.IOTC_ER_CAN_NOT_FIND_DEVICE) -> {
                                     if (isActive) {
                                         emit(CONNECTION_STATE_UNKNOWN_DEVICE)
@@ -1238,7 +1253,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun downFile(context: Context?, channelIndex: Int, srcFile: String?, dstFile: String?) {
         if (srcFile.isNullOrEmpty() || dstFile.isNullOrEmpty() || !mDownloadDstFile.isNullOrEmpty() || mDownloadDstUri != null || !mDownloadSrcFile.isNullOrEmpty()) {
-            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,dstFile,null)
+            onAVChanneldownloadFileStatus(
+                DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
+                0,
+                0,
+                0,
+                dstFile,
+                null
+            )
             return
         }
         mDownloadDstFile = dstFile
@@ -1256,7 +1278,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun downFile(context: Context?, channelIndex: Int, srcFile: String?, dstUri: Uri?) {
         if (srcFile.isNullOrEmpty() || dstUri == null || !mDownloadDstFile.isNullOrEmpty() || mDownloadDstUri != null || !mDownloadSrcFile.isNullOrEmpty()) {
-            onAVChanneldownloadFileStatus(DownLoadFileStatus.DOWNLOAD_STATE_ERROR, 0, 0, 0,null,dstUri)
+            onAVChanneldownloadFileStatus(
+                DownLoadFileStatus.DOWNLOAD_STATE_ERROR,
+                0,
+                0,
+                0,
+                null,
+                dstUri
+            )
             return
         }
         mDownloadDstUri = dstUri
@@ -1376,6 +1405,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         broadCameraReceiverFrameData(channel, bitmap, time)
     }
 
+    override fun onAVChannelReceiverFrameDataTime(time: Long) {
+        broadCameraReceiverFrameDataTime(time)
+    }
+
     override fun onAVChannelReceiverFrameInfo(
         channel: Int,
         bitRate: Int,
@@ -1414,7 +1447,6 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     }
 
 
-
     override fun onAVChanneldownloadFileStatus(
         status: DownLoadFileStatus,
         total: Int,
@@ -1426,7 +1458,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         d(TAG, "onAVChanneldownloadFileStatus[${mDownloadFileStatusCallbacks.size}]")
         val iterator = mDownloadFileStatusCallbacks.iterator()
         while (iterator.hasNext()) {
-            iterator.next()?.onAvChannelDownloadFileStatus(status, total, downloadTotal, progress,dstFilePath,dstUri)
+            iterator.next()?.onAvChannelDownloadFileStatus(
+                status,
+                total,
+                downloadTotal,
+                progress,
+                dstFilePath,
+                dstUri
+            )
         }
         if (status == DownLoadFileStatus.DOWNLOAD_STATE_FINISH
             || status == DownLoadFileStatus.DOWNLOAD_STATE_CANCEL

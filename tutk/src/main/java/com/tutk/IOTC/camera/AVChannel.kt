@@ -475,6 +475,9 @@ interface IAVChannelListener {
     /**图片内容，包含时间戳*/
     fun onAVChannelReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long)
 
+    /**视频 时间戳回调*/
+    fun onAVChannelReceiverFrameDataTime(time:Long)
+
     fun onAVChannelReceiverFrameInfo(
         channel: Int,
         bitRate: Int,

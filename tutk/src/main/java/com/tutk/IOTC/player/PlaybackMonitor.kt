@@ -366,6 +366,7 @@ class PlaybackMonitor @JvmOverloads constructor(
             mRecordEvent?.let {
                 if (mPlaybackStatus != PlaybackStatus.STOP) {
                     Liotc.d(TAG, "stop 2")
+                    Liotc.d("PlaybackMonitor","receiveFrameDataTime stop playback")
                     mCamera.playback(type = PlaybackStatus.STOP, time = it)
                 }
             }
@@ -1022,25 +1023,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     override fun receiveFrameData(camera: Camera?, avChannel: Int, bmp: Bitmap?, time: Long) {
-        if(userDeviceStatusBarTime){
-            if(firstStatusBarTime == -1L){
-                firstStatusBarTime = time
-                mCurrentDeviceStatusBar = 0
-            }else{
-                mCurrentDeviceStatusBar = (time-firstStatusBarTime).toInt()
-            }
-            mVideoPlayTime = mCurrentDeviceStatusBar
-            if(meoofRecord){
-                if(mPlaybackStatus == PlaybackStatus.PLAYING){
-                    mOnPlaybackCallback?.onPlayBackStatus(
-                        mPlaybackStatus,
-                        mVideoTotalTime,
-                        mCurrentDeviceStatusBar
-                    )
-                }
-            }
 
-        }
 
         Liotc.d(
             "PlaybackMonitor",
@@ -1106,6 +1089,45 @@ class PlaybackMonitor @JvmOverloads constructor(
         }
     }
 
+    override fun receiveFrameDataTime(time: Long) {
+        if(userDeviceStatusBarTime){
+
+            if(mRecordEvent == null){
+                if(firstStatusBarTime == -1L){
+                    Liotc.d("PlaybackMonitor","receiveFrameDataTime --------------")
+                    firstStatusBarTime = time
+                    mCurrentDeviceStatusBar = 0
+                }
+            }else{
+                if(firstStatusBarTime == -1L){
+                    val startTime = (mRecordEvent?.time ?: 0L) * 1000
+                    Liotc.d("PlaybackMonitor","receiveFrameDataTime --------------time=${time}   startTime=${startTime}")
+                    firstStatusBarTime = startTime
+                    mCurrentDeviceStatusBar = 0
+                }
+            }
+
+            Liotc.d("PlaybackMonitor","receiveFrameDataTime time=$time   firstStatusBarTime=$firstStatusBarTime")
+            if(firstStatusBarTime == -1L){
+                firstStatusBarTime = time
+                mCurrentDeviceStatusBar = 0
+            }else{
+                mCurrentDeviceStatusBar = (time-firstStatusBarTime).toInt()
+            }
+            mVideoPlayTime = mCurrentDeviceStatusBar
+            if(meoofRecord){
+                if(mPlaybackStatus == PlaybackStatus.PLAYING){
+                    mOnPlaybackCallback?.onPlayBackStatus(
+                        mPlaybackStatus,
+                        mVideoTotalTime,
+                        mCurrentDeviceStatusBar
+                    )
+                }
+            }
+
+        }
+    }
+
     override fun receiveFrameInfo(
         camera: Camera?,
         avChannel: Int,
@@ -1140,6 +1162,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                     "PlaybackMonitor",
                     "--------IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP type=${playback?.type},${mOnPlaybackCallback == null},channel=${playback?.channel}"
                 )
+
                 when (playback?.type) {
                     PlaybackStatus.START -> {
                         mVideoTotalTime = if(meoofRecord){
@@ -1187,6 +1210,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         )
                     }
                     PlaybackStatus.STOP -> {
+                        Liotc.d("PlaybackMonitor","receiveFrameDataTime resp stop play")
                         isRunning = false
                         stopPlayTime()
                         stop()
