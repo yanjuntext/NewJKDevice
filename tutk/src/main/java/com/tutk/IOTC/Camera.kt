@@ -484,7 +484,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    fun isSessionConnected() = mSID >= 0
+    fun isSessionConnected():Boolean{
+//        Liotc.d(TAG,"restartPlayback isSessionConnected mSID=$mSID")
+        return mSID >= 0
+    }
 
     fun isChannelConnected(avChannel: Int): Boolean {
         val iterator = mAVChannels.iterator()

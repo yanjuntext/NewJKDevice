@@ -147,8 +147,12 @@ class PlaybackMonitor @JvmOverloads constructor(
     var userDeviceStatusBarTime = false
     private var firstStatusBarTime = -1L
     private var mCurrentDeviceStatusBar = 0
+
     /**是否是新的录像方式*/
-    var meoofRecord:Boolean = false
+    var meoofRecord: Boolean = false
+
+    private var isSeekTo = false
+    private var seekToTime = -1
 
     init {
         mSurHolder = holder
@@ -192,7 +196,14 @@ class PlaybackMonitor @JvmOverloads constructor(
     private val handler = object : Handler(Looper.myLooper()!!) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
+
+            Liotc.d(
+                TAG,
+                "restartPlayback handleMessage=${msg.what} isRestartPlayback=$isRestartPlayback"
+            )
+
             if (msg.what == OPT_RESTART_NEW_EVENT) {
+                Liotc.d(TAG, "restartPlayback handleMessage isRestartPlayback=${isRestartPlayback}")
                 if (isRestartPlayback) {
                     newRecordEvent?.let { event ->
                         mRecordEvent = event
@@ -201,9 +212,22 @@ class PlaybackMonitor @JvmOverloads constructor(
                         newRecordEvent = null
                         newRecordEventDuration = 0
                         newRecordEventIndex = 0
+                        Liotc.d(TAG, "restartPlayback handleMessage mAvChannel=$mAvChannel")
                         if (mAvChannel < 0) {
+                            Liotc.d(
+                                TAG,
+                                "restartPlayback handleMessage mAvChannel=$mAvChannel  1111"
+                            )
                             mRecordEvent?.let {
-                                if (mPlaybackStatus == null) {
+                                Liotc.d(
+                                    TAG,
+                                    "restartPlayback handleMessage mAvChannel=$mAvChannel  mPlaybackStatus=$mPlaybackStatus  2222"
+                                )
+                                if (mPlaybackStatus == null || mPlaybackStatus == PlaybackStatus.ERROR) {
+                                    Liotc.d(
+                                        TAG,
+                                        "restartPlayback handleMessage mAvChannel=$mAvChannel  mPlaybackStatus=$mPlaybackStatus  33333"
+                                    )
                                     mCamera.playback(
                                         type = PlaybackStatus.START,
                                         time = it,
@@ -278,11 +302,13 @@ class PlaybackMonitor @JvmOverloads constructor(
         index: Int = 0,
         playBackCallback: OnPlayBackCallback?
     ) {
+        Liotc.d(TAG, "restartPlayback startPlayback 111")
         mRecordEvent = event
         mRecordDuration = duration
         mRecordIndex = index
         mOnPlaybackCallback = playBackCallback
         mCamera = camera
+
         mCamera?.registerSessionChannelCallback(this)
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
@@ -302,14 +328,59 @@ class PlaybackMonitor @JvmOverloads constructor(
         }
     }
 
+    //重新播放或者播放新的
+    fun restartPlayback(
+        camera: Camera? = null,
+        event: TEvent?,
+        duration: Int = 0,
+        index: Int = 0,
+        delay: Long = 500L,
+        playBackCallback: OnPlayBackCallback?
+    ) {
+        Liotc.d(TAG, "restartPlayback 1111")
+        isSeekTo = false
+        mSeekTime = 0
+        if (mRecordEvent == null) {
+            startPlayback(camera, event, duration, index, playBackCallback)
+            return
+        }
+        Liotc.d(TAG, "restartPlayback 22222")
+        if (isRecording) {
+            stopRecord()
+        }
+        destroyRendjob()
+        stop()
+        if (mCamera == null) {
+            mCamera = camera
+            mCamera?.registerSessionChannelCallback(this)
+            mCamera?.registerIOCallback(this)
+            mCamera?.registerFrameCallback(this)
+            registerAVChannelRecordStatus(mAVChannelRecordStatus)
+        }
+        if (mOnPlaybackCallback == null) {
+            mOnPlaybackCallback = playBackCallback
+        }
+        Liotc.d(TAG, "restartPlayback 3333 isRestartPlayback=$isRestartPlayback")
+        handler.removeMessages(OPT_RESTART_NEW_EVENT)
+        isRestartPlayback = true
+        newRecordEvent = event
+        newRecordEventDuration = duration
+        newRecordEventIndex = index
+        handler.sendEmptyMessageDelayed(OPT_RESTART_NEW_EVENT, delay)
+        Liotc.d(TAG, "restartPlayback 4444 isRestartPlayback=$isRestartPlayback")
+    }
+
 
     fun changePlayStatus() {
+        Liotc.d(TAG, "restartPlayback changePlayStatus 111")
         if (mAvChannel >= 0 && (mPlaybackStatus == PlaybackStatus.PLAYING || mPlaybackStatus == PlaybackStatus.PAUSE)) {
             mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback changePlayStatus 222")
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
             }
         } else if (mAvChannel < 0 && mPlaybackStatus == null) {
             mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback changePlayStatus 333")
                 mCamera.playback(
                     type = PlaybackStatus.START,
                     time = it,
@@ -326,6 +397,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     private fun pause() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PLAYING) {
             mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback pause 111")
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
             }
         }
@@ -337,6 +409,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     private fun resume() {
         if (mAvChannel >= 0 && mPlaybackStatus == PlaybackStatus.PAUSE) {
             mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback resume 111")
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
             }
         }
@@ -345,11 +418,49 @@ class PlaybackMonitor @JvmOverloads constructor(
     fun seekTo(seekTime: Int) {
         if (mAvChannel >= 0 && mVideoTotalTime > 0) {
             mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback seekTo 111")
                 AVAPIs.avClientCleanAudioBuf(mAvChannel)
                 mSeekTime = seekTime
                 val percent = ((mSeekTime * 1.0 / mVideoTotalTime) * 100).toInt()
                 mCamera.playbackSeekToPercent(time = it, percent = percent)
             }
+        } else if (mAvChannel == -1) {
+
+            mRecordEvent?.let {
+                isSeekTo = true
+
+                Liotc.d(TAG, "restartPlayback seekTo 111")
+                AVAPIs.avClientCleanAudioBuf(mAvChannel)
+                mSeekTime = seekTime
+                val percent = ((mSeekTime * 1.0 / mVideoTotalTime) * 100).toInt()
+                mCamera.playbackSeekToPercent(time = it, percent = percent)
+            }
+        }
+    }
+
+    fun seekTo(
+        camera: Camera? = null,
+        event: TEvent?,
+        duration: Int = 0,
+        index: Int = 0,
+        delay: Long = 500L,
+        playBackCallback: OnPlayBackCallback?,
+        seekTime: Int
+    ) {
+        if (mAvChannel >= 0 && mVideoTotalTime > 0) {
+            mRecordEvent?.let {
+                Liotc.d(TAG, "restartPlayback seekTo 111")
+                AVAPIs.avClientCleanAudioBuf(mAvChannel)
+                mSeekTime = seekTime
+                val percent = ((mSeekTime * 1.0 / mVideoTotalTime) * 100).toInt()
+                mCamera.playbackSeekToPercent(time = it, percent = percent)
+            }
+        } else if (mAvChannel == -1) {
+
+            restartPlayback(camera, event, duration, index, delay, playBackCallback)
+            isSeekTo = true
+            mSeekTime = seekTime
+
         }
     }
 
@@ -359,14 +470,15 @@ class PlaybackMonitor @JvmOverloads constructor(
      */
     private fun stop() {
 //        if (mAvChannel >= 0 && mPlaybackStatus != PlaybackStatus.STOP) {
-        Liotc.d(TAG, "stop mAvChannel=$mAvChannel")
+        Liotc.d(TAG, "restartPlayback stop mAvChannel=$mAvChannel")
         if (mAvChannel >= 0) {
             releaseAudio()
             Liotc.d(TAG, "stop1")
             mRecordEvent?.let {
                 if (mPlaybackStatus != PlaybackStatus.STOP) {
+                    Liotc.d(TAG, "restartPlayback stop 111")
                     Liotc.d(TAG, "stop 2")
-                    Liotc.d("PlaybackMonitor","receiveFrameDataTime stop playback")
+                    Liotc.d("PlaybackMonitor", "receiveFrameDataTime stop playback")
                     mCamera.playback(type = PlaybackStatus.STOP, time = it)
                 }
             }
@@ -388,11 +500,13 @@ class PlaybackMonitor @JvmOverloads constructor(
             mAvChannel = -1
             mPlaybackStatus = null
 //            mOnPlaybackCallback = null
+        } else {
+            mPlaybackStatus = null
         }
     }
 
     private fun startPlayTime() {
-        if(userDeviceStatusBarTime) return
+        if (userDeviceStatusBarTime) return
         mPlayTimeJob?.cancel()
         mPlayTimeJob = null
         mPlayTimeRunning = true
@@ -434,6 +548,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         mCamera = null
 
         destroyRendjob()
+        Liotc.d(TAG, "restartPlayback unAttachCamera")
     }
 
     private fun destroyRendjob() {
@@ -533,7 +648,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         if (mCamera == null) break
                         Liotc.d(
                             "PlaybackMonitor",
-                            "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}],canDraw=$canDraw"
+                            "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}],canDraw=$canDraw  isThreadRunning=${isThreadRunning()}"
                         )
                         if (!isThreadRunning()) {
                             break
@@ -648,6 +763,7 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     fun onDestroy() {
+        Liotc.d(TAG, "restartPlayback onDestroy 111")
         isRestartPlayback = false
         newRecordEvent = null
         newRecordEventDuration = 0
@@ -658,39 +774,12 @@ class PlaybackMonitor @JvmOverloads constructor(
             stopRecord()
         }
         destroyRendjob()
+        Liotc.d(TAG, "restartPlayback onDestroy 222 mAvChannel=$mAvChannel")
         stop()
         mOnPlaybackCallback = null
         unRegisterAVChannelRecordStatus()
+        Liotc.d(TAG, "restartPlayback onDestroy")
         unAttachCamera()
-    }
-
-
-    //重新播放或者播放新的
-    fun restartPlayback(
-        camera: Camera? = null,
-        event: TEvent?,
-        duration: Int = 0,
-        index: Int = 0,
-        delay: Long = 500L,
-        playBackCallback: OnPlayBackCallback?
-    ) {
-
-        if (mRecordEvent == null) {
-            startPlayback(camera, event, duration, index, playBackCallback)
-            return
-        }
-
-        if (isRecording) {
-            stopRecord()
-        }
-        destroyRendjob()
-        stop()
-        handler.removeMessages(OPT_RESTART_NEW_EVENT)
-        isRestartPlayback = true
-        newRecordEvent = event
-        newRecordEventDuration = duration
-        newRecordEventIndex = index
-        handler.sendEmptyMessageDelayed(OPT_RESTART_NEW_EVENT, delay)
     }
 
 
@@ -801,7 +890,7 @@ class PlaybackMonitor @JvmOverloads constructor(
             }
         }
 
-        event?.let { evt->
+        event?.let { evt ->
             mGestureDetector?.onTouchEvent(evt)
         }
         return true
@@ -1090,33 +1179,39 @@ class PlaybackMonitor @JvmOverloads constructor(
     }
 
     override fun receiveFrameDataTime(time: Long) {
-        if(userDeviceStatusBarTime){
+        if (userDeviceStatusBarTime) {
 
-            if(mRecordEvent == null){
-                if(firstStatusBarTime == -1L){
-                    Liotc.d("PlaybackMonitor","receiveFrameDataTime --------------")
+            if (mRecordEvent == null) {
+                if (firstStatusBarTime == -1L) {
+                    Liotc.d("PlaybackMonitor", "receiveFrameDataTime --------------")
                     firstStatusBarTime = time
                     mCurrentDeviceStatusBar = 0
                 }
-            }else{
-                if(firstStatusBarTime == -1L){
+            } else {
+                if (firstStatusBarTime == -1L) {
                     val startTime = (mRecordEvent?.time ?: 0L) * 1000
-                    Liotc.d("PlaybackMonitor","receiveFrameDataTime --------------time=${time}   startTime=${startTime}")
+                    Liotc.d(
+                        "PlaybackMonitor",
+                        "receiveFrameDataTime --------------time=${time}   startTime=${startTime}"
+                    )
                     firstStatusBarTime = startTime
                     mCurrentDeviceStatusBar = 0
                 }
             }
 
-            Liotc.d("PlaybackMonitor","receiveFrameDataTime time=$time   firstStatusBarTime=$firstStatusBarTime")
-            if(firstStatusBarTime == -1L){
+            Liotc.d(
+                "PlaybackMonitor",
+                "receiveFrameDataTime time=$time   firstStatusBarTime=$firstStatusBarTime"
+            )
+            if (firstStatusBarTime == -1L) {
                 firstStatusBarTime = time
                 mCurrentDeviceStatusBar = 0
-            }else{
-                mCurrentDeviceStatusBar = (time-firstStatusBarTime).toInt()
+            } else {
+                mCurrentDeviceStatusBar = (time - firstStatusBarTime).toInt()
             }
             mVideoPlayTime = mCurrentDeviceStatusBar
-            if(meoofRecord){
-                if(mPlaybackStatus == PlaybackStatus.PLAYING){
+            if (meoofRecord) {
+                if (mPlaybackStatus == PlaybackStatus.PLAYING) {
                     mOnPlaybackCallback?.onPlayBackStatus(
                         mPlaybackStatus,
                         mVideoTotalTime,
@@ -1157,6 +1252,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         when (avIOCtrlMsgType) {
 
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL_RESP -> {
+
                 val playback = data.parsePlayBack()
                 Liotc.d(
                     "PlaybackMonitor",
@@ -1165,12 +1261,12 @@ class PlaybackMonitor @JvmOverloads constructor(
 
                 when (playback?.type) {
                     PlaybackStatus.START -> {
-                        mVideoTotalTime = if(meoofRecord){
-                            mRecordDuration*1000
-                        }else{
+                        mVideoTotalTime = if (meoofRecord) {
+                            mRecordDuration * 1000
+                        } else {
                             playback.time / 1000
                         }
-                        mVideoPlayTime = if(userDeviceStatusBarTime) mCurrentDeviceStatusBar else 0
+                        mVideoPlayTime = if (userDeviceStatusBarTime) mCurrentDeviceStatusBar else 0
                         mPlaybackStatus = PlaybackStatus.START
                         mOnPlaybackCallback?.onPlayBackStatus(
                             mPlaybackStatus,
@@ -1184,11 +1280,16 @@ class PlaybackMonitor @JvmOverloads constructor(
                             startShow()
                             mPlaybackStatus = PlaybackStatus.PLAYING
                             startPlayTime()
+                            if(isSeekTo && mSeekTime > 0){
+                                seekTo(mSeekTime)
+                            }
                         } else {
                             mPlaybackStatus = PlaybackStatus.ERROR
                             mOnPlaybackCallback?.onPlayBackStatus(mPlaybackStatus, 0, 0)
                             stopPlayTime()
                         }
+                        isSeekTo = false
+                        mSeekTime = 0
                     }
                     PlaybackStatus.PAUSE -> {
                         if (mPlaybackStatus == PlaybackStatus.PAUSE) {
@@ -1210,7 +1311,8 @@ class PlaybackMonitor @JvmOverloads constructor(
                         )
                     }
                     PlaybackStatus.STOP -> {
-                        Liotc.d("PlaybackMonitor","receiveFrameDataTime resp stop play")
+                        Liotc.d(TAG, "restartPlayback receiveIOCtrlData stop")
+                        Liotc.d("PlaybackMonitor", "receiveFrameDataTime resp stop play")
                         isRunning = false
                         stopPlayTime()
                         stop()
@@ -1223,6 +1325,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         mPlaybackStatus = null
                     }
                     PlaybackStatus.END -> {
+                        Liotc.d(TAG, "restartPlayback receiveIOCtrlData end stop")
                         mPlaybackStatus = PlaybackStatus.END
                         mOnPlaybackCallback?.onPlayBackStatus(
                             mPlaybackStatus,
@@ -1235,7 +1338,17 @@ class PlaybackMonitor @JvmOverloads constructor(
                     PlaybackStatus.SEEKTIME -> {
                         mVideoPlayTime = mSeekTime
                     }
-                    else->{
+//                    PlaybackStatus.ERROR->{
+//                        mPlaybackStatus = PlaybackStatus.ERROR
+//                        mOnPlaybackCallback?.onPlayBackStatus(
+//                            mPlaybackStatus,
+//                            mVideoTotalTime,
+//                            mVideoPlayTime
+//                        )
+//                        stopPlayTime()
+//                        stop()
+//                    }
+                    else -> {
 
                     }
                 }

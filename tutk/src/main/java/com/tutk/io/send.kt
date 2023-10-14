@@ -781,7 +781,9 @@ fun Camera?.playback(
     index: Int = 0,
     must: Boolean = false
 ): Boolean {
+    Liotc.d("playback","restartPlayback send playback  111 canSend=${canSend()}  must=$must ${this==null}  mSid=${this?.isSessionConnected()}")
     return if (canSend() || must) {
+        Liotc.d("playback","restartPlayback send playback 222")
         this?.sendIOCtrl(
             channel,
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_RECORD_PLAYCONTROL,
