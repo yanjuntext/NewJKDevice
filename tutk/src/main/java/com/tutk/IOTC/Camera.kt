@@ -593,9 +593,11 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     ) {
         _connect(delayTime)
         start(channel, account, psw, delayTime)
-        getSupportStream(channel)
-        getAudioCodec(channel)
-        getTimeZone(channel, must = true)
+//        getSupportStream(channel)
+//        getAudioCodec(channel)
+        if(mTTimeZone == null){
+            getTimeZone(channel, must = true)
+        }
         if (setTime) {
             setTime(channel, must = true)
         }
@@ -707,6 +709,9 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
+    fun broadTimeZoneData(){
+
+    }
 
     private fun broadCameraReceiveExtraInfo(
         channel: Int,
@@ -1360,6 +1365,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     fun supportTimeZone() = mTTimeZone?.supportTimeZone ?: false
     fun getTimeZoneGmtDiff() = mTTimeZone?.gmtDiff
 
+    fun getTimeZoneData():TTimeZone?{
+        if(mTTimeZone == null){
+            getTimeZone()
+        }else{
+            return mTTimeZone
+        }
+        return null
+    }
 
     private fun d(tag: String, msg: String) {
         Liotc.d(tag, "$msg   uid[$uid]")

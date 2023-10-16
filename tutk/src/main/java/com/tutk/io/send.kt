@@ -455,6 +455,7 @@ fun Camera?.deleteTFCardRecordVideo(
  */
 fun Camera?.getTimeZone(channel: Int = Camera.DEFAULT_AV_CHANNEL, must: Boolean = false): Boolean {
     return if (canSend() || must) {
+
         this?.sendIOCtrl(
             channel,
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GET_TIMEZONE_REQ,

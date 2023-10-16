@@ -13,8 +13,8 @@ android {
 //        applicationId "com.tutk.IOTC"
         minSdkVersion 21
         targetSdkVersion 33
-        versionCode 20
-        versionName "2.1.14"
+        versionCode 21
+        versionName "2.1.15"
         //2304 * 1296
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -116,7 +116,7 @@ android {
 }
 afterEvaluate {
     publishing {
-        def versionName = "2.1.21" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+        def versionName = "2.1.22" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
         publications {
             // Creates a Maven publication called "release".
             release(MavenPublication) {

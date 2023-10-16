@@ -159,18 +159,18 @@ class RecvVideoJob(
                 while (isRunning) {
                     avChannel?.refreshSid()
                     if (mSID >= 0 && getAvIndex() >= 0) {
-                        if (isChangeVideoQuality) {
-                            Liotc.d("AvChannel", "changeQualityStopDecoderVideo: remove all frame ")
-                            avChannel?.VideoFrameQueue?.removeAll()
-                            avChannel?.IOCtrlQueue?.Enqueue(
-                                getAvIndex(),
-                                511,
-                                Packet.intToByteArray_Little(0)
-                            )
-
-                            isChangeVideoQuality = false
-                            continue
-                        }
+//                        if (isChangeVideoQuality) {
+//                            Liotc.d("AvChannel", "changeQualityStopDecoderVideo: remove all frame ")
+//                            avChannel?.VideoFrameQueue?.removeAll()
+//                            avChannel?.IOCtrlQueue?.Enqueue(
+//                                getAvIndex(),
+//                                511,
+//                                Packet.intToByteArray_Little(0)
+//                            )
+//
+//                            isChangeVideoQuality = false
+//                            continue
+//                        }
                         if (System.currentTimeMillis() - nLastTimeStamp > 1000L) {
                             nLastTimeStamp = System.currentTimeMillis()
                             emit(
@@ -217,27 +217,32 @@ class RecvVideoJob(
                                     TAG,
                                     "AVAPIs.AV_ER_INCOMPLETE_FRAME========== nReadSize=[$nReadSize],running[$isRunning]  i frame[,IFrame[${fram.isIFrame()}]"
                                 )
-
+                                nCodecId = fram.codec_id.toInt()
 //                                d(TAG, "camera video data nReadSize[$nReadSize],setSize[]")
 
 //                            if (avChannel?.recording == true && fram.isIFrame() && LocalRecordHelper.recording) {
 
 
-                                if (!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording) {
+                                if (!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording && nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG) {
                                     isFirstRecording = true
                                     requestIFrame()
                                 }
+                                if(nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG && !isFirstRecording && LocalRecordHelper.recording){
+                                    isFirstIFrame = true
+                                }
 
-                                if (fram.isIFrame() && LocalRecordHelper.recording) {
+                                if ((fram.isIFrame() || nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG) && LocalRecordHelper.recording) {
                                     LocalRecordHelper.setParseBuffer(fram.frmData)
                                     LocalRecordHelper.canRecording = true
+
+
                                 }
 
                                 if (!LocalRecordHelper.recording) {
                                     isFirstRecording = false
                                 }
 
-                                nCodecId = fram.codec_id.toInt()
+
                                 nOnlineNumber = fram.onlineNum.toInt()
                                 d(TAG, "codeId=$nCodecId")
 
@@ -247,7 +252,6 @@ class RecvVideoJob(
                                         if (fram.isIFrame()) {
                                             mNoFramIndex = -1
                                         }
-
                                         if (fram.isIFrame() || pFrmNo[0].toLong() == nPrevFrmNo + 1) {
                                             nPrevFrmNo = pFrmNo[0].toLong()
 
@@ -274,6 +278,13 @@ class RecvVideoJob(
                                         }
                                     }
                                     AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
+                                        if (LocalRecordHelper.recording) {
+                                            LocalRecordHelper.recordVideoFrame(
+                                                fram.frmData,
+                                                fram.frmSize,
+                                                true
+                                            )
+                                        }
                                         try {
                                             val bmp =
                                                 BitmapFactory.decodeByteArray(
@@ -306,10 +317,12 @@ class RecvVideoJob(
                                         if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
                                             d(TAG, "*** mNoFramIndex=${mNoFramIndex}")
                                             //重新请求IFrame
-                                            avChannel?.IOCtrlQueue?.Enqueue(
-                                                getAvIndex(), 511,
-                                                Packet.intToByteArray_Little(0)
-                                            )
+                                            if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG){
+                                                avChannel?.IOCtrlQueue?.Enqueue(
+                                                    getAvIndex(), 511,
+                                                    Packet.intToByteArray_Little(0)
+                                                )
+                                            }
                                             d(TAG, "### mNoFramIndex=${mNoFramIndex}")
                                             mNoFramIndex = 0
                                         }
