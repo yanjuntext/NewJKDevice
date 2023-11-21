@@ -29,10 +29,12 @@ import kotlin.random.Random
  */
 const val IOTC_CONNECT_ING = 9999
 
-open class Camera(val uid: String, var psw: String, var viewAccount: String = "admin") :
+open class Camera(val uid: String, var psw: String, var viewAccount: String = "admin",var newDevice:Boolean = false) :
     IAVChannelListener {
 
     private val TAG = "IOTCamera"
+
+
 
     companion object {
 
@@ -320,6 +322,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     fun getSessionMode(): Int {
         return mSessionMode
+    }
+    //是否是新的API的设备
+    fun isNewApiDevice() = newDevice || uid.endsWith("111B")
+
+    fun getDeviceUid():String{
+        return if(uid.endsWith("111B")){
+            "${uid.substring(0,uid.length-4)}111A"
+        }else uid
     }
 
     /*----------------------------------IO命令------------------------------------------*/
@@ -609,7 +619,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         delayTime: Long = 2000L,
         setTime: Boolean = true
     ) {
-        Liotc.d("startConnectJob", "startConnectJob reconnect stop---- $this")
+        Liotc.d("startConnectJob", "StartJob startConnectJob reconnect stop---- $this channel=$channel")
         disconnect()
 //        handler.removeMessages(OPT_RECONNECT)
 //        val obtainMessage = handler.obtainMessage()
@@ -622,6 +632,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**广播设备在线状态*/
     private fun broadCameraSessionStatus(status: Int) {
+        
         val iterator = mOnSessionChannelCallbacks.iterator()
         while (iterator.hasNext()) {
             iterator.next().receiveSessionInfo(this, status)
@@ -814,13 +825,18 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             )
                             if (nGSID >= 0) {
                                 //旧设备连接方式
-                                mSID = IOTCAPIs.IOTC_Connect_ByUID_Parallel(uid, nGSID)
-                                //新设备需要使用AUTHKEY才可以连接
-//                                val input = St_IOTCConnectInput()
-//                                input.authenticationType = 0
-//                                input.authKey = "00000000"
-//                                input.timeout = 10
-//                                mSID = IOTCAPIs.IOTC_Connect_ByUIDEx(uid, nGSID, input)
+                                if(isNewApiDevice()){
+                                    //新设备需要使用AUTHKEY才可以连接
+                                    val input = St_IOTCConnectInput()
+                                    input.authenticationType = 0
+                                    input.authKey = "00000000"
+                                    input.timeout = 30
+                                    mSID = IOTCAPIs.IOTC_Connect_ByUIDEx(getDeviceUid(), nGSID, input)
+                                }else{
+                                    mSID = IOTCAPIs.IOTC_Connect_ByUID_Parallel(getDeviceUid(), nGSID)
+                                }
+
+
 
                                 setAvChannelSid(mSID)
                                 d(
@@ -1009,7 +1025,8 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
 
         if (channel == null) {
-            channel = AVChannel(avChannel, viewAccount, viewPasswd, uid, this, this)
+            d(TAG, "StartJob mAVChannels add  channel avChannel=$avChannel")
+            channel = AVChannel(avChannel, viewAccount, viewPasswd, getDeviceUid(), this, this)
             channel.setSid(mSID)
             mAVChannels.add(channel)
             d(TAG, "mAVChannels add  stop---------")

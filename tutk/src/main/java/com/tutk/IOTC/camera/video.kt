@@ -356,7 +356,35 @@ class RecvVideoJob(
                                         Packet.byteArrayToShort_Little(pFrmInfoBuf, 0).toInt()
 
                                     when (nCodecId) {
-                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG,
+                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG->{
+//                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
+                                                nIncompleteFrmCount++
+//                                            } else {
+//                                                val frame = AVFrame(
+//                                                    pFrmNo[0].toLong(),
+//                                                    AVFrame.FRM_STATE_COMPLETE,
+//                                                    pFrmInfoBuf,
+//                                                    _framData,
+//                                                    outFrmSize[0],
+//                                                    avChannel?.playMode?.value
+//                                                        ?: PlayMode.PLAY_LIVE.value
+//                                                )
+//                                                try {
+//                                                    val bmp =
+//                                                        BitmapFactory.decodeByteArray(
+//                                                            frame.frmData,
+//                                                            0,
+//                                                            frame.frmSize
+//                                                        )
+//                                                    d(TAG,"MEDIA_CODEC_VIDEO_MJPEG bmp----")
+//                                                    emit(getFrameBitmapInfo(bmp, frame.deviceCurrentTime))
+//                                                    avChannel?.lastFrame = bmp
+//                                                } catch (e: Exception) {
+//                                                    e.printStackTrace()
+//                                                }
+//                                            }
+
+                                        }
                                         AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> {
                                             nIncompleteFrmCount++
                                         }
@@ -404,6 +432,8 @@ class RecvVideoJob(
                         Packet.intToByteArray_Little(0)
                     )
                 }
+                //移除视频缓存
+                AVAPIs.avClientCleanLocalVideoBuf(getAvIndex())
             }.flowOn(Dispatchers.IO)
                 .collect {
 

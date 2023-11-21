@@ -90,7 +90,7 @@ class StartJob(
                         ensureActive()
                         val nServType = intArrayOf(-1)
                         val mReSend = IntArray(1)
-
+                        d(TAG, "StartJob mSID[$mSID]，acc=${avChannel?.mViewAcc},pwd=${avChannel?.mViewPwd},channel=${avChannel?.mChannel}")
                         val result = avChannel?.let { avChannel ->
                             val avIndex = AVAPIs.avClientStart2(
                                 mSID,
