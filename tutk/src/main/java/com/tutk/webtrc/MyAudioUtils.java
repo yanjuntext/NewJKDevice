@@ -45,6 +45,9 @@ public class MyAudioUtils {
                         mn.setBluetoothScoOn(true);
                         mn.startBluetoothSco();
                         break;
+                    }else if(deviceType == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                            || deviceType == AudioDeviceInfo.TYPE_WIRED_HEADPHONES){
+                        mn.setSpeakerphoneOn(false);
                     }
                 }
             }

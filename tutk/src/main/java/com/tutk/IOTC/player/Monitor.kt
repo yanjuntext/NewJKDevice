@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.media.AudioManager
 import android.net.Uri
 import android.os.*
 import android.provider.MediaStore
@@ -44,7 +45,7 @@ class Monitor @JvmOverloads constructor(
     attr: AttributeSet?,
     defStyle: Int = 0
 ) : SurfaceView(context, attr, defStyle), LifecycleObserver, SurfaceHolder.Callback, OnIOCallback,
-    OnSessionChannelCallback, OnFrameCallback ,OnAudioListener{
+    OnSessionChannelCallback, OnFrameCallback, OnAudioListener {
 
 
     private var mPlayMode: PlayMode = PlayMode.PLAY_LIVE
@@ -126,9 +127,9 @@ class Monitor @JvmOverloads constructor(
 
     private var canDraw = false
 
-    private var mMonitorThread:MonitorThread? = null
+    private var mMonitorThread: MonitorThread? = null
 
-    var onAudioListener:OnAudioListener? = null
+    var onAudioListener: OnAudioListener? = null
 
     //surface 是否回调了destroy
     private var surfaceIsDestroy = true
@@ -138,10 +139,14 @@ class Monitor @JvmOverloads constructor(
     //是否切换了视频分辨率
     private var isChangeVideoQuality = false
 
-    private val mHandler = object: Handler(Looper.myLooper()!!){
+    private var isRegisterEarphonesReceiver = false
+    private var earPhoneReceiver: EarphonesReceiver? = null
+    private lateinit var audioManager: AudioManager
+
+    private val mHandler = object : Handler(Looper.myLooper()!!) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
-            if(msg.what == OPT_CHANGE_VIDEO_QUALITY){
+            if (msg.what == OPT_CHANGE_VIDEO_QUALITY) {
                 changeQualityStopDecoderVideo(false)
             }
         }
@@ -238,7 +243,7 @@ class Monitor @JvmOverloads constructor(
         isFullScreen = true
     }
 
-    fun setNowFullScreen(){
+    fun setNowFullScreen() {
         _setFullScreen()
     }
 
@@ -285,9 +290,9 @@ class Monitor @JvmOverloads constructor(
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
         Liotc.d("Monitor", "attachCamera")
         Liotc.d("Monitor", "renderJob--------->attachCamera")
-        Liotc.d("Monitor","renderJob  surfaceIsDestroy=$surfaceIsDestroy")
-        if(!surfaceIsDestroy){
-            Liotc.d("Monitor","renderJob  surfaceIsDestroy=$surfaceIsDestroy ---------")
+        Liotc.d("Monitor", "renderJob  surfaceIsDestroy=$surfaceIsDestroy")
+        if (!surfaceIsDestroy) {
+            Liotc.d("Monitor", "renderJob  surfaceIsDestroy=$surfaceIsDestroy ---------")
             renderJob(holder)
         }
     }
@@ -302,7 +307,7 @@ class Monitor @JvmOverloads constructor(
         mCamera?.unregisterIOCallback(this)
         mCamera = null
 
-       destroyRendjob()
+        destroyRendjob()
     }
 
     /**
@@ -311,7 +316,7 @@ class Monitor @JvmOverloads constructor(
     fun setWidthHeightRation(widthRation: Int, heightRation: Int) {
         this.widthRation = widthRation
         this.heightRation = heightRation
-        Liotc.d("Monitor","setWidthHeightRation wr=${this.widthRation} hr=${this.heightRation}")
+        Liotc.d("Monitor", "setWidthHeightRation wr=${this.widthRation} hr=${this.heightRation}")
     }
 
     /**
@@ -329,6 +334,7 @@ class Monitor @JvmOverloads constructor(
     fun setVoiceType(voiceType: VoiceType) {
         mVoiceType = voiceType
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
+        earPhoneReceiver?.voiceType = voiceType
     }
 
     /**播放视频*/
@@ -349,7 +355,7 @@ class Monitor @JvmOverloads constructor(
     }
 
     //切换分辨率的时候，停止解码视频
-    private fun changeQualityStopDecoderVideo(changeing:Boolean = false){
+    private fun changeQualityStopDecoderVideo(changeing: Boolean = false) {
 //        mCamera?.changeQualityStopDecoderVideo(mAvChannel,changeing)
     }
 
@@ -420,7 +426,7 @@ class Monitor @JvmOverloads constructor(
         mCamera?.getVideoQuality(mAvChannel)
     }
 
-    fun setMonitorVideoQuality(quality: VideoQuality,stopShow:Boolean = false) {
+    fun setMonitorVideoQuality(quality: VideoQuality, stopShow: Boolean = false) {
         if (mCamera?.isSessionConnected() == true) {
 //            if(stopShow){
 //                if (isRecording) {
@@ -430,7 +436,7 @@ class Monitor @JvmOverloads constructor(
 //                changeQualityStopDecoderVideo(true)
 //            }
 //
-            if(mCamera?.setVideoQuality(mAvChannel, quality) == true){
+            if (mCamera?.setVideoQuality(mAvChannel, quality) == true) {
                 changeQualityStopDecoderVideo(true)
             }
 
@@ -440,7 +446,10 @@ class Monitor @JvmOverloads constructor(
     private fun renderJob(holder: SurfaceHolder) {
         runCatching {
             if (isRunning && mMonitorThread?.isThreadRunning() == true) {
-                Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
+                Liotc.d(
+                    "Monitor",
+                    "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]"
+                )
                 return
             }
             Liotc.d("Monitor", "surfaceDestroyed 1 renderJob=$canDraw")
@@ -448,14 +457,14 @@ class Monitor @JvmOverloads constructor(
             Liotc.d("Monitor", "renderJob running")
             isRunning = true
 
-            mMonitorThread = object:MonitorThread(surfaceHolder = holder){
+            mMonitorThread = object : MonitorThread(surfaceHolder = holder) {
                 override fun run() {
 
                     var videoCanvas: Canvas? = null
 
                     mPaint.isDither = true
 
-                    while (isThreadRunning() ) {
+                    while (isThreadRunning()) {
                         if (mCamera == null) break
                         Liotc.d(
                             "Monitor",
@@ -466,21 +475,29 @@ class Monitor @JvmOverloads constructor(
                         }
                         if (mLastFrame != null && mLastFrame?.isRecycled == false && !isChangeVideoQuality) {
                             this@Monitor.mSurHolder?.let { surfaceHolder ->
-                                synchronized(surfaceHolder){
+                                synchronized(surfaceHolder) {
                                     try {
                                         videoCanvas = mSurHolder?.lockCanvas()
                                         videoCanvas?.let { canvas ->
                                             canvas.drawColor(Color.BLACK)
                                             mLastFrame?.let { bitmap ->
                                                 Liotc.d("Monitor", "drawBitmap")
-                                                if(isThreadRunning()){
-                                                    canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
+                                                if (isThreadRunning()) {
+                                                    canvas.drawBitmap(
+                                                        bitmap,
+                                                        null,
+                                                        mRectCanvas,
+                                                        mPaint
+                                                    )
                                                 }
                                             }
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
-                                        Liotc.d("Monitor","surfaceDestroyed renderJob error=${e.message}")
+                                        Liotc.d(
+                                            "Monitor",
+                                            "surfaceDestroyed renderJob error=${e.message}"
+                                        )
                                     } finally {
                                         videoCanvas?.let {
                                             if (this@Monitor.canDraw) {
@@ -593,10 +610,11 @@ class Monitor @JvmOverloads constructor(
         unAttachCamera()
         unRegisterOnMonitorVideoQualityCallback()
         unRegisterAVChannelRecordStatus()
+        unregisterEarPhoneChangeListener()
         Liotc.d("Monitor", "surfaceDestroyed 4 onDestroy")
     }
 
-    private fun destroyRendjob(){
+    private fun destroyRendjob() {
         isRunning = false
         mMonitorThread?.stopThread()
         kotlin.runCatching {
@@ -623,6 +641,7 @@ class Monitor @JvmOverloads constructor(
                     mStartClickPoint.set(_event.x, _event.y)
 
                 }
+
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     val dist = spacing(_event)
                     if (dist > 10f) {
@@ -630,6 +649,7 @@ class Monitor @JvmOverloads constructor(
                         mOrigDist = dist
                     }
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     if (mPinchedMode == ZOOM) {
                         val result = scaleVideo(_event)
@@ -643,6 +663,7 @@ class Monitor @JvmOverloads constructor(
                         }
                     }
                 }
+
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_POINTER_UP -> {
                     if (mCurrentScale == 1f) {
@@ -712,7 +733,7 @@ class Monitor @JvmOverloads constructor(
                 }
             }
         }
-        event?.let {evt->
+        event?.let { evt ->
             mGestureDetector?.onTouchEvent(evt)
         }
         return true
@@ -882,7 +903,7 @@ class Monitor @JvmOverloads constructor(
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Liotc.d("Monitor", "surfaceDestroyed 1")
         this.mSurHolder?.let { surfaceHolder ->
-            synchronized(surfaceHolder){
+            synchronized(surfaceHolder) {
 
             }
         }
@@ -918,9 +939,9 @@ class Monitor @JvmOverloads constructor(
 
             nScreenWidth = measuredWidth
             nScreenHeight = measuredHeight
-            if(mBitmapWidth != 0 && mBitmapHeight !=0){
+            if (mBitmapWidth != 0 && mBitmapHeight != 0) {
                 isChangeVideoQuality = mBitmapWidth != bmp?.width || mBitmapHeight != bmp?.height
-                if(isChangeVideoQuality){
+                if (isChangeVideoQuality) {
                     //视频大小不同，说明切换了分辨率，这时候请求当前分辨率
                     getMonitorVideoQuality()
                 }
@@ -1005,6 +1026,7 @@ class Monitor @JvmOverloads constructor(
                 mCamera?.startShow(context, mAvChannel, withYuv = withYuv)
 //                renderJob()
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP -> {
                 //获取清晰度
                 data?.let {
@@ -1014,18 +1036,22 @@ class Monitor @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.FHD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.FHD)
                             }
+
                             VideoQuality.HD.value -> {
                                 mVideoQuality = VideoQuality.HD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.HD)
                             }
+
                             VideoQuality.SMOOTH.value -> {
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
+
                             VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
+
                             else -> {
                                 mVideoQuality = VideoQuality.SD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SD)
@@ -1034,6 +1060,7 @@ class Monitor @JvmOverloads constructor(
                     }
                 }
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SETSTREAMCTRL_RESP -> {
                 //设置清晰度
                 data?.let {
@@ -1043,18 +1070,22 @@ class Monitor @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.FHD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.FHD)
                             }
+
                             VideoQuality.HD.value -> {
                                 mVideoQuality = VideoQuality.HD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.HD)
                             }
+
                             VideoQuality.SMOOTH.value -> {
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
+
                             VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
+
                             else -> {
                                 mVideoQuality = VideoQuality.SD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SD)
@@ -1191,6 +1222,35 @@ class Monitor @JvmOverloads constructor(
     override fun onAudioRecordVolume(volume: Double) {
         onAudioListener?.onAudioRecordVolume(volume)
     }
+
+    //注册外放监听
+    fun registerEarphoneChangeListener() {
+        if (!this::audioManager.isInitialized) {
+            val service = context.getSystemService(Context.AUDIO_SERVICE)
+            if (service is AudioManager) {
+                audioManager = service
+            }
+        }
+        if (isRegisterEarphonesReceiver) return
+        isRegisterEarphonesReceiver = true
+        if (earPhoneReceiver == null) {
+            earPhoneReceiver = EarphonesReceiver(audioManager, mVoiceType)
+        }
+        earPhoneReceiver?.voiceType = mVoiceType
+        context?.registerReceiver(earPhoneReceiver, earPhoneReceiver?.getIntentFilter())
+    }
+
+    fun unregisterEarPhoneChangeListener() {
+        kotlin.runCatching {
+            if (isRegisterEarphonesReceiver) {
+                isRegisterEarphonesReceiver = false
+                earPhoneReceiver?.let { receiver ->
+                    context?.unregisterReceiver(receiver)
+                }
+            }
+        }
+    }
+
 }
 
 /**
@@ -1207,9 +1267,13 @@ enum class AudioTalker {
 }
 
 
- open class MonitorThread(var surfaceHolder:SurfaceHolder?,var isRunning:Boolean = true,var canDraw:Boolean = true):Thread(){
+open class MonitorThread(
+    var surfaceHolder: SurfaceHolder?,
+    var isRunning: Boolean = true,
+    var canDraw: Boolean = true
+) : Thread() {
 
-    fun stopThread(){
+    fun stopThread() {
         isRunning = false
         canDraw = false
     }

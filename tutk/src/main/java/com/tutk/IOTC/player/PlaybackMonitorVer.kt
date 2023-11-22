@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -142,6 +143,10 @@ class PlaybackMonitorVer @JvmOverloads constructor(
     private var canDraw = false
 
     private var mMonitorThread:MonitorThread? = null
+
+    private var isRegisterEarphonesReceiver = false
+    private var earPhoneReceiver: EarphonesReceiver? = null
+    private lateinit var audioManager: AudioManager
 
     init {
         mSurHolder = holder
@@ -781,6 +786,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
         unRegisterAVChannelRecordStatus()
         stopPlayTime()
         mOnPlaybackCallback = null
+        unregisterEarPhoneChangeListener()
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
@@ -1137,5 +1143,34 @@ class PlaybackMonitorVer @JvmOverloads constructor(
          *  @param currentTime 当前播放的时长 秒
          */
         fun onPlayBackStatus(status: PlaybackStatus?, totalTime: Int, currentTime: Int)
+    }
+
+    //注册外放监听
+    fun registerEarphoneChangeListener() {
+        if (!this::audioManager.isInitialized) {
+            val service = context.getSystemService(Context.AUDIO_SERVICE)
+            if (service is AudioManager) {
+                audioManager = service
+            }
+        }
+        if (isRegisterEarphonesReceiver) return
+        isRegisterEarphonesReceiver = true
+        if (earPhoneReceiver == null) {
+            earPhoneReceiver = EarphonesReceiver(audioManager, mVoiceType)
+        }
+        earPhoneReceiver?.voiceType = mVoiceType
+        context?.registerReceiver(earPhoneReceiver, earPhoneReceiver?.getIntentFilter())
+    }
+
+    fun unregisterEarPhoneChangeListener() {
+        kotlin.runCatching {
+            if (isRegisterEarphonesReceiver) {
+                isRegisterEarphonesReceiver = false
+                earPhoneReceiver?.let { receiver ->
+                    context?.unregisterReceiver(receiver)
+                }
+            }
+        }
+
     }
 }
