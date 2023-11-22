@@ -786,7 +786,6 @@ class PlaybackMonitorVer @JvmOverloads constructor(
         unRegisterAVChannelRecordStatus()
         stopPlayTime()
         mOnPlaybackCallback = null
-        unregisterEarPhoneChangeListener()
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {

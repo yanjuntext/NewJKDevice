@@ -9,6 +9,8 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
 
+import com.tutk.IOTC.Liotc;
+
 /**
  * @Author: wangyj
  * @CreateDate: 2022/3/1
@@ -34,20 +36,23 @@ public class MyAudioUtils {
             //修复三星手机双向通话时 声音小的问题
             mn.setMode(AudioManager.MODE_IN_COMMUNICATION);
             mn.setSpeakerphoneOn(true);
-
+            Liotc.INSTANCE.d("EarphonesReceiver","11111111");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 AudioDeviceInfo[] devices = mn.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
                 for (AudioDeviceInfo deviceInfo : devices) {
                     int deviceType = deviceInfo.getType();
                     if (deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                             || deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                        Liotc.INSTANCE.d("EarphonesReceiver","22222");
                         //检测到连接蓝牙耳机，则通过蓝牙耳机进行通话、播放
                         mn.setBluetoothScoOn(true);
+                        mn.setSpeakerphoneOn(false);
                         mn.startBluetoothSco();
                         break;
                     }else if(deviceType == AudioDeviceInfo.TYPE_WIRED_HEADSET
                             || deviceType == AudioDeviceInfo.TYPE_WIRED_HEADPHONES){
                         mn.setSpeakerphoneOn(false);
+                        Liotc.INSTANCE.d("EarphonesReceiver","3333");
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.tutk.IOTC.player
 
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -14,12 +15,13 @@ import com.tutk.IOTC.status.VoiceType
 /**耳机状态监听*/
 class EarphonesReceiver(val audioManager: AudioManager,var voiceType: VoiceType) :BroadcastReceiver(){
     private val TAG = this::class.java.simpleName
-
+    private var isBluetoothEarPhone = false
     fun getIntentFilter():IntentFilter{
         val filter = IntentFilter()
         filter.addAction(AudioManager.ACTION_HEADSET_PLUG)
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         return filter
     }
 
@@ -38,21 +40,21 @@ class EarphonesReceiver(val audioManager: AudioManager,var voiceType: VoiceType)
                         if (deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                             || deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                         ) {
-                            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-                            audioManager.startBluetoothSco()
-                            //检测到连接蓝牙耳机，则通过蓝牙耳机进行通话、播放
-                            audioManager.isBluetoothScoOn = true
-                            audioManager.isSpeakerphoneOn = false
+                           openBluetoothEarPhone()
                             break
                         } else if (deviceType == AudioDeviceInfo.TYPE_WIRED_HEADSET
                             || deviceType == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
                         ) {
+                            isBluetoothEarPhone = false
                             //有线耳机
+                            audioManager.isBluetoothScoOn = false
                             audioManager.isSpeakerphoneOn = false
                         }
                     }
                     if(devices.isEmpty()){
+                        isBluetoothEarPhone = false
                         //没有耳机
+                        audioManager.isBluetoothScoOn = false
                         audioManager.isSpeakerphoneOn = true
                     }
                     return
@@ -62,39 +64,56 @@ class EarphonesReceiver(val audioManager: AudioManager,var voiceType: VoiceType)
                 if(state == 1){
                     //耳机连接
                     if(audioManager.isBluetoothA2dpOn){
-                        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-                        audioManager.startBluetoothSco()
-                        //检测到连接蓝牙耳机，则通过蓝牙耳机进行通话、播放
-                        audioManager.isBluetoothScoOn = true
-                        audioManager.isSpeakerphoneOn = false
+                       openBluetoothEarPhone()
                     }else{
+                        isBluetoothEarPhone = false
+                        audioManager.isBluetoothScoOn = false
                         //有线耳机
                         audioManager.isSpeakerphoneOn = false
                     }
                 }else if(state == 0){
                     // 耳机断开
                     // 切换到扬声器
-                    if(voiceType == VoiceType.ONE_WAY_VOICE){
-                        audioManager.mode = AudioManager.MODE_NORMAL
-                    }
-                    audioManager.isSpeakerphoneOn = false
+                    closeBluetoothEarPhone()
                 }
             }
             BluetoothDevice.ACTION_ACL_CONNECTED->{
                 //蓝牙耳机已连接
-                audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-                audioManager.startBluetoothSco()
-                //检测到连接蓝牙耳机，则通过蓝牙耳机进行通话、播放
-                audioManager.isBluetoothScoOn = true
-                audioManager.isSpeakerphoneOn = false
+               openBluetoothEarPhone()
             }
             BluetoothDevice.ACTION_ACL_DISCONNECTED->{
+
                 //蓝牙耳机已断开
-                if(voiceType == VoiceType.ONE_WAY_VOICE){
-                    audioManager.mode = AudioManager.MODE_NORMAL
+                closeBluetoothEarPhone()
+            }
+            BluetoothAdapter.ACTION_STATE_CHANGED->{
+                var blueState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,0)
+                 if(blueState == BluetoothAdapter.STATE_OFF && isBluetoothEarPhone){
+                    closeBluetoothEarPhone()
                 }
-                audioManager.isSpeakerphoneOn = false
             }
         }
+    }
+    //关闭蓝牙耳机
+    private fun closeBluetoothEarPhone(){
+        Liotc.d(TAG,"closeBluetoothEarPhone")
+        isBluetoothEarPhone = false
+        //蓝牙耳机已断开
+        if(voiceType == VoiceType.ONE_WAY_VOICE){
+            audioManager.mode = AudioManager.MODE_NORMAL
+        }
+        audioManager.stopBluetoothSco()
+        audioManager.isBluetoothScoOn = false
+        audioManager.isSpeakerphoneOn = true
+    }
+    //打开蓝牙耳机
+    private fun openBluetoothEarPhone(){
+        Liotc.d(TAG,"openBluetoothEarPhone")
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        isBluetoothEarPhone = true
+        //检测到连接蓝牙耳机，则通过蓝牙耳机进行通话、播放
+        audioManager.startBluetoothSco()
+        audioManager.isBluetoothScoOn = true
+        audioManager.isSpeakerphoneOn = false
     }
 }

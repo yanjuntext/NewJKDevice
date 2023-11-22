@@ -785,7 +785,6 @@ class PlaybackMonitor @JvmOverloads constructor(
         unRegisterAVChannelRecordStatus()
         Liotc.d(TAG, "restartPlayback onDestroy")
         unAttachCamera()
-        unregisterEarPhoneChangeListener()
     }
 
 
