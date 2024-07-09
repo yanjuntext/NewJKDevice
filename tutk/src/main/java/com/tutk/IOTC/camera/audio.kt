@@ -37,7 +37,7 @@ class RecvAudioJob(
     //上次语音格式
     private var mLastVoiceType: VoiceType? = null
 
-    private var soundStatus:Boolean = false
+    private var soundStatus: Boolean = false
 
 
     private fun isSupportAudio(codeId: Int) =
@@ -126,6 +126,10 @@ class RecvAudioJob(
                     )
                 }
                 avChannel?.refreshSid()
+
+                var cachePcmAudiBuffer = ByteArray(1280)
+                var cachePcmAudiSize = 0
+                var lastPcmTime = 0L
 //                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
                 while (isRunning && isActive && (avChannel?.isAudioPlaying() == true || LocalRecordHelper.recording)) {
 //                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
@@ -136,7 +140,7 @@ class RecvAudioJob(
 
                             if (avChannel?.audioPlayStatus == true) {
                                 iavChannelStatus?.onListenerStatus(true)
-                            }else{
+                            } else {
                                 iavChannelStatus?.onListenerStatus(false)
                             }
 
@@ -216,6 +220,7 @@ class RecvAudioJob(
                                                 AVFrame.MEDIA_CODEC_AUDIO_ADPCM -> mFPS = _fps / 640
                                                 AVFrame.MEDIA_CODEC_AUDIO_PCM -> mFPS =
                                                     _fps / frame.frmSize
+
                                                 AVFrame.MEDIA_CODEC_AUDIO_G711A -> mFPS = _fps / 320
                                             }
                                             d("first localRecord")
@@ -230,7 +235,7 @@ class RecvAudioJob(
                                                 if (isTwoWayVoiceType() && mPlayMode == Camera.AUDIORECORD_PLAYBACKMODE) 134 else mCodecId,
                                                 mSamplerate, mDatabits, mChannel
                                             )
-
+                                            cachePcmAudiSize = 0
                                             //初始化单向语音播放器
                                             val initAudioTrack = if (!isTwoWayVoiceType()) {
                                                 d("first AudioTrackHelper")
@@ -286,17 +291,67 @@ class RecvAudioJob(
                                     when (mCodecId) {
                                         AVFrame.MEDIA_CODEC_AUDIO_PCM -> {
                                             if (nReadSize > 0) {
+                                                val isNeedNewCacheBuffer =
+                                                    cachePcmAudiBuffer.size < nReadSize
                                                 val values = ByteArray(nReadSize)
                                                 System.arraycopy(recvBuf, 0, values, 0, nReadSize)
 
                                                 if (avChannel?.audioPlayStatus == true) {
                                                     if (isTwoWayVoiceType()) {
-                                                        d("putPlayData")
-                                                        avChannel?.putPlayData(
-                                                            values,
-                                                            nReadSize,
-                                                            frame.timestamp.toLong()
-                                                        )
+                                                        d("putPlayData isPcmAudioRecvSize800=${avChannel.camera?.isPcmAudioRecvSize800}")
+
+                                                        if (avChannel.camera?.isPcmAudioRecvSize800 == true) {
+                                                            //PCM 格式音频强制使用800
+
+                                                            var playTotalSize = nReadSize + cachePcmAudiSize
+                                                            var start = 0
+                                                            if(playTotalSize < 800){
+                                                                System.arraycopy(values,0,cachePcmAudiBuffer,cachePcmAudiSize,nReadSize)
+                                                                cachePcmAudiSize+=nReadSize
+                                                            }else{
+                                                                while (playTotalSize >= 800){
+                                                                    val pcmValue = ByteArray(800)
+                                                                    var total = 0
+                                                                    if(cachePcmAudiSize != 0){
+                                                                        System.arraycopy(cachePcmAudiBuffer,0,pcmValue,0,cachePcmAudiSize)
+                                                                    }
+                                                                    total+=cachePcmAudiSize
+                                                                    val offset = 800 - cachePcmAudiSize
+
+                                                                    if(start + offset < nReadSize){
+                                                                        System.arraycopy(values,start,pcmValue,cachePcmAudiSize,offset)
+                                                                        start+=offset
+                                                                        total+=offset
+                                                                    }else{
+                                                                        val length = nReadSize-start
+                                                                        System.arraycopy(values,start,pcmValue,cachePcmAudiSize,length)
+                                                                        start+=length
+                                                                        total+=length
+                                                                    }
+                                                                    d("putPlayData total=$total start=$start lastPcmTime=$lastPcmTime c=${frame.timestamp.toLong()} o=${frame.timestamp.toLong()-lastPcmTime}")
+                                                                    avChannel?.putPlayData(
+                                                                        pcmValue,
+                                                                        total,
+                                                                        frame.timestamp.toLong()
+                                                                    )
+                                                                    if(cachePcmAudiSize != 0) cachePcmAudiSize = 0
+                                                                    playTotalSize-=total
+                                                                    if(playTotalSize < 800){
+                                                                        lastPcmTime = frame.timestamp.toLong()
+                                                                        System.arraycopy(values,start,cachePcmAudiBuffer,0,playTotalSize)
+                                                                        cachePcmAudiSize = playTotalSize
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            avChannel?.putPlayData(
+                                                                values,
+                                                                nReadSize,
+                                                                frame.timestamp.toLong()
+                                                            )
+                                                        }
+
+
                                                     } else {
                                                         AudioTrackHelper.playAudio(
                                                             values,
@@ -319,6 +374,7 @@ class RecvAudioJob(
 
                                             }
                                         }
+
                                         AVFrame.MEDIA_CODEC_AUDIO_G711A -> {
                                             AudioProcessHelper.decode(
                                                 recvBuf,
@@ -355,6 +411,7 @@ class RecvAudioJob(
 
                                             }
                                         }
+
                                         AVFrame.MEDIA_CODEC_AUDIO_AAC_ADTS,
                                         AVFrame.MEDIA_CODEC_AUDIO_AAC_LATM,
                                         AVFrame.MEDIA_CODEC_AUDIO_AAC_RAW -> {
@@ -414,15 +471,15 @@ class RecvAudioJob(
 //                    if(isTwoWayVoiceType() &&  avChannel?.audioRecordStatus != true){
 //
 //                    }else{
-                        d("avClientCleanAudioBuf [$index]")
-                        AVAPIs.avClientCleanAudioBuf(index)
-                        avChannel.IOCtrlQueue?.Enqueue(
-                            index,
-                            AVIOCTRLDEFs.IOTYPE_USER_IPCAM_AUDIOSTOP,
-                            0.littleByteArray()
+                    d("avClientCleanAudioBuf [$index]")
+                    AVAPIs.avClientCleanAudioBuf(index)
+                    avChannel.IOCtrlQueue?.Enqueue(
+                        index,
+                        AVIOCTRLDEFs.IOTYPE_USER_IPCAM_AUDIOSTOP,
+                        0.littleByteArray()
 //                        Packet.intToByteArray_Little(0)
-                        )
-                        d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
+                    )
+                    d("IOTYPE_USER_IPCAM_AUDIOSTOP [$index]")
 //                    }
 
                 }
@@ -430,7 +487,7 @@ class RecvAudioJob(
                 iavChannelStatus?.onListenerStatus(false)
                 //关闭双向语音
                 avChannel?.mAudioPlayer?.soundOff()
-                if(isTwoWayVoiceType() && avChannel?.audioRecordStatus != true){
+                if (isTwoWayVoiceType() && avChannel?.audioRecordStatus != true) {
                     d("zrtAudioPlayer unInitAudioTrack  333")
                     //释放双向语音资源
                     avChannel?.unInitAudioPlayer()
@@ -461,7 +518,7 @@ class RecvAudioJob(
         iavChannelStatus?.onListenerStatus(false)
     }
 
-    fun setTwoWayVoiceStatus(status:Boolean){
+    fun setTwoWayVoiceStatus(status: Boolean) {
         soundStatus = status
     }
 
@@ -494,8 +551,10 @@ class SendAudioJob(
     private var mLastVoiceType: VoiceType? = null
 
     private fun isTwoWayVoiceType() = avChannel?.mVoiceType == VoiceType.TWO_WAY_VOICE
+
     //chIndexForSendAudio
     private var mSendAudioSessionIndex = -1
+
     //avIndexForSendAudio
     private var mSendAudioChannelIndex = -1
 
@@ -677,7 +736,8 @@ class SendAudioJob(
                             }
 
                             if (avChannel.mVoiceType == VoiceType.TWO_WAY_VOICE
-                                && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
+                                && avChannel.mAudioCodec == AVFrame.MEDIA_CODEC_AUDIO_PCM
+                            ) {
                                 avChannel.initAudioPlayer(mContext?.get())
 //                                d("TWO_WAY_VOICE isAudioRecord[${avChannel.mAudioPlayer?.isAudioRecord}],codec[${avChannel.mAudioCodec}]")
 
@@ -689,7 +749,7 @@ class SendAudioJob(
                                 }
 
 
-                                if(!avChannel.audioRecordStatus){
+                                if (!avChannel.audioRecordStatus) {
                                     //当关掉录音的时候，需要发送空数据，否则新的设备5S后会主动断开通话通道
                                     val frameInfo = getAudioInfo(
                                         AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
@@ -699,7 +759,7 @@ class SendAudioJob(
                                         mSendAudioChannelIndex, ByteArray(800),
                                         800, frameInfo, 16
                                     )
-                                }else{
+                                } else {
                                     //如果是双向语音
                                     val filterData = avChannel.mAudioPlayer?.filterData
                                     emit(SendAudioEmitInfo(volume = avChannel.audioRecordVolume))
@@ -731,6 +791,7 @@ class SendAudioJob(
                                                     16
                                                 )
                                             }
+
                                             else -> {
                                                 val frameInfo = getAudioInfo(
                                                     AVFrame.MEDIA_CODEC_AUDIO_PCM.toShort(),
@@ -798,6 +859,7 @@ class SendAudioJob(
                                             )
                                         }
                                     }
+
                                     else -> {
                                         val size = AudioTrackHelper.readAudioRecord(pcmBuf)
                                         if (isTwoWayVoiceType()) {
@@ -834,7 +896,7 @@ class SendAudioJob(
                                 d("zrtAudioPlayer audioplayer status= pauseAudioRecord")
                                 avChannel.mAudioPlayer?.pauseAudioRecord()
                             }
-                            if(System.currentTimeMillis() - lastEmptyTime >= 2000){
+                            if (System.currentTimeMillis() - lastEmptyTime >= 2000) {
                                 lastEmptyTime = System.currentTimeMillis();
                                 //当关掉录音的时候，需要发送空数据，否则新的设备5S后会主动断开通话通道
                                 val frameInfo = getAudioInfo(
@@ -882,9 +944,9 @@ class SendAudioJob(
                 //关闭双向语音音频
                 avChannel?.mAudioPlayer?.pauseAudioRecord()
                 d("sendAudio stop 4")
-                if(isTwoWayVoiceType()){
+                if (isTwoWayVoiceType()) {
                     if (mSendAudioChannelIndex >= 0) {
-                        AVAPIs.avServExit(avChannel?.SID?:-1,mSendAudioChannelIndex)
+                        AVAPIs.avServExit(avChannel?.SID ?: -1, mSendAudioChannelIndex)
                     }
                     if (mSendAudioSessionIndex >= 0) {
                         avChannel?.SID?.let { sid ->
@@ -898,10 +960,10 @@ class SendAudioJob(
                         }
 
                     }
-                }else{
+                } else {
                     if (mSendAudioChannelIndex >= 0) {
 //                        AVAPIs.avServExit(avChannel?.SID?:-1,mSendAudioChannelIndex)
-                       AVAPIs.avServStop(mSendAudioChannelIndex)
+                        AVAPIs.avServStop(mSendAudioChannelIndex)
                     }
 
                     d("sendAudio stop 5")
@@ -1077,6 +1139,7 @@ internal object AudioTrackHelper {
                     mAudioTrack?.write(data, offset, size)
                 }
             }
+
             is ShortArray -> {
                 if (data.size >= offset + size) {
                     mAudioTrack?.write(data, offset, size)

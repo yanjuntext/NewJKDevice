@@ -99,7 +99,6 @@ internal class SendFileJob(
         val mRecvRDTCommand = ByteArray(28)
         val mSendRDTCommand = ByteArray(28)
         runJob = GlobalScope.launch(Dispatchers.Main) {
-
             flow {
 
                 while (isRunning && isActive()
@@ -265,7 +264,6 @@ internal class SendFileJob(
                         it.progress
                     )
                 }
-
         }
     }
 

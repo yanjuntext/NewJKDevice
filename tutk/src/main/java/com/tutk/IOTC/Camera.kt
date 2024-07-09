@@ -29,11 +29,17 @@ import kotlin.random.Random
  */
 const val IOTC_CONNECT_ING = 9999
 
-open class Camera(val uid: String, var psw: String, var viewAccount: String = "admin",var newDevice:Boolean = false) :
+open class Camera(
+    val uid: String,
+    var psw: String,
+    var viewAccount: String = "admin",
+    var newDevice: Boolean = false,
+    //音频PCM格式的大小是否固定在800
+    var isPcmAudioRecvSize800: Boolean = false
+) :
     IAVChannelListener {
 
     private val TAG = "IOTCamera"
-
 
 
     companion object {
@@ -270,6 +276,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                     val data = bundle.getByteArray("data")
                     broadCameraReceiverIOCtrlData(channel, type, data)
                 }
+
                 OPT_RECONNECT -> {
                     val obj = msg.obj
                     if (obj is Long) {
@@ -323,13 +330,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     fun getSessionMode(): Int {
         return mSessionMode
     }
+
     //是否是新的API的设备
     fun isNewApiDevice() = newDevice || uid.endsWith("111B")
 
-    fun getDeviceUid():String{
-        return if(uid.endsWith("111B")){
-            "${uid.substring(0,uid.length-4)}111A"
-        }else uid
+    fun getDeviceUid(): String {
+        return if (uid.endsWith("111B")) {
+            "${uid.substring(0, uid.length - 4)}111A"
+        } else uid
     }
 
     /*----------------------------------IO命令------------------------------------------*/
@@ -494,7 +502,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    fun isSessionConnected():Boolean{
+    fun isSessionConnected(): Boolean {
 //        Liotc.d(TAG,"restartPlayback isSessionConnected mSID=$mSID")
         return mSID >= 0
     }
@@ -605,7 +613,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         start(channel, account, psw, delayTime)
 //        getSupportStream(channel)
 //        getAudioCodec(channel)
-        if(mTTimeZone == null){
+        if (mTTimeZone == null) {
             getTimeZone(channel, must = true)
         }
         if (setTime) {
@@ -619,7 +627,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         delayTime: Long = 2000L,
         setTime: Boolean = true
     ) {
-        Liotc.d("startConnectJob", "StartJob startConnectJob reconnect stop---- $this channel=$channel")
+        Liotc.d(
+            "startConnectJob",
+            "StartJob startConnectJob reconnect stop---- $this channel=$channel"
+        )
         disconnect()
 //        handler.removeMessages(OPT_RECONNECT)
 //        val obtainMessage = handler.obtainMessage()
@@ -632,7 +643,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
 
     /**广播设备在线状态*/
     private fun broadCameraSessionStatus(status: Int) {
-        
+
         val iterator = mOnSessionChannelCallbacks.iterator()
         while (iterator.hasNext()) {
             iterator.next().receiveSessionInfo(this, status)
@@ -657,6 +668,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                     startSendFile()
                 }
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSUPPORTSTREAM_RESP -> {
                 mSupportStreamList.clear()
                 if (data == null || data.size < 4 || channel != DEFAULT_AV_CHANNEL) return
@@ -685,6 +697,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                 }
 
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_DOWNLOAD_FILE_RESP -> {
                 //下载文件
                 Liotc.d(
@@ -695,12 +708,14 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                     startDownloadFile()
                 }
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GET_TIMEZONE_RESP -> {
                 //获取时区
                 data.parseTimeZone()?.let { tTimeZone ->
                     mTTimeZone = tTimeZone
                 }
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SET_TIMEZONE_RESP -> {
                 //设置设备时区
                 data.parseTimeZone()?.let { tTimeZone ->
@@ -720,7 +735,7 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
         }
     }
 
-    fun broadTimeZoneData(){
+    fun broadTimeZoneData() {
 
     }
 
@@ -825,15 +840,17 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             )
                             if (nGSID >= 0) {
                                 //旧设备连接方式
-                                if(isNewApiDevice()){
+                                if (isNewApiDevice()) {
                                     //新设备需要使用AUTHKEY才可以连接
                                     val input = St_IOTCConnectInput()
                                     input.authenticationType = 0
                                     input.authKey = "00000000"
-                                    input.timeout = 30
-                                    mSID = IOTCAPIs.IOTC_Connect_ByUIDEx(getDeviceUid(), nGSID, input)
-                                }else{
-                                    mSID = IOTCAPIs.IOTC_Connect_ByUID_Parallel(getDeviceUid(), nGSID)
+                                    input.timeout = 60000
+                                    mSID =
+                                        IOTCAPIs.IOTC_Connect_ByUIDEx(getDeviceUid(), nGSID, input)
+                                } else {
+                                    mSID =
+                                        IOTCAPIs.IOTC_Connect_ByUID_Parallel(getDeviceUid(), nGSID)
                                 }
 
 
@@ -855,10 +872,12 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                         "===ThreadConnectDev connect ok msid[$mSID],devid[$uid],[${isActive}]"
                                     )
                                 }
+
                                 mSID == IOTCAPIs.IOTC_ER_CONNECT_IS_CALLING -> {
 
                                     delay(1000L)
                                 }
+
                                 (mSID == IOTCAPIs.IOTC_ER_UNKNOWN_DEVICE)
                                         || (mSID == IOTCAPIs.IOTC_ER_UNLICENSE)
                                         || (mSID == IOTCAPIs.IOTC_ER_CAN_NOT_FIND_DEVICE) -> {
@@ -867,9 +886,11 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                                     }
                                     break
                                 }
+
                                 mSID == IOTCAPIs.IOTC_ER_TIMEOUT -> {
                                     break
                                 }
+
                                 mSID == IOTCAPIs.IOTC_ER_DEVICE_NOT_SECURE_MODE || mSID == IOTCAPIs.IOTC_ER_DEVICE_SECURE_MODE -> {
                                     if (isActive) {
                                         emit(CONNECTION_STATE_UNSUPPORTED)
@@ -974,9 +995,11 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
                             Liotc.d("startConnectJob", "startConnectJob reconnect 111 stop----")
                             reconnect(DEFAULT_AV_CHANNEL)
                         }
+
                         -1 -> {
                             d("startConnectJob", "disconnect")
                         }
+
                         else -> {
                             broadCameraSessionStatus(it)
                         }
@@ -1382,10 +1405,10 @@ open class Camera(val uid: String, var psw: String, var viewAccount: String = "a
     fun supportTimeZone() = mTTimeZone?.supportTimeZone ?: false
     fun getTimeZoneGmtDiff() = mTTimeZone?.gmtDiff
 
-    fun getTimeZoneData():TTimeZone?{
-        if(mTTimeZone == null){
+    fun getTimeZoneData(): TTimeZone? {
+        if (mTTimeZone == null) {
             getTimeZone()
-        }else{
+        } else {
             return mTTimeZone
         }
         return null
