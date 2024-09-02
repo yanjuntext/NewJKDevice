@@ -114,6 +114,8 @@ open class Camera(
 
         internal var IS_CHECK = true
 
+        internal var checkYCount = 100
+
         /**
          * tutk 库的key
          * 如果不使用默认的key,请在@link{}之前调用
@@ -208,6 +210,10 @@ open class Camera(
 
         fun setCheck(check: Boolean) {
             IS_CHECK = check
+        }
+
+        fun setCheckYCount(count:Int){
+            checkYCount = count
         }
     }
 
@@ -551,6 +557,52 @@ open class Camera(
         }
     }
 
+
+    /**
+     * 发送JSON数据包
+     * @param avChannel
+     * @param requestJson 发送的json数据
+     * @param responseJson 设备返回的json数据
+     * @param timeOut 超时时间，单位秒。默认5秒
+     * */
+    fun sendJsonCtrl(avChannel: Int,requestJson:String,responseJson:Array<String>,timeOut:Int = 5){
+        if(requestJson.isEmpty()) return
+
+        val iterator = mAVChannels.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next.mChannel == avChannel) {
+                if ((next.IOCtrlJsonQueue?.getQueueSize() ?: 0) < AVIOCTRL_FAST_MAX_SEND_SIZE) {
+                    next.IOCtrlJsonQueue?.Enqueue(requestJson,responseJson,timeOut)
+                }
+                return
+            }
+        }
+    }
+
+    /**
+     * 发送JSON数据包
+     * @param avChannel
+     * @param requestJson 发送的json数据
+     * @param responseJson 设备返回的json数据
+     * @param timeOut 超时时间，单位秒。默认5秒
+     * */
+    suspend fun sendJsonCtrlWithResponse(avChannel: Int, requestJson: String, responseJson: Array<String>, timeOut: Int=5):Int{
+        if(requestJson.isEmpty()) return -1
+        val iterator = mAVChannels.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next.mChannel == avChannel) {
+                val mAvIndex = next.mAvIndex
+                if(mAvIndex >= 0){
+                    return AVAPIs.avSendJSONCtrlRequest(mAvIndex,requestJson,responseJson,timeOut)
+                }
+                return mAvIndex
+            }
+        }
+        return -1
+    }
+
     //发送控制命令、如云台转到等
     fun clearFastIoQueue(avChannel: Int) {
         val iterator = mAVChannels.iterator()
@@ -558,6 +610,19 @@ open class Camera(
             val next = iterator.next()
             if (next.mChannel == avChannel) {
                 next.IOCtrlFastQueue?.removeAll()
+                break
+            }
+        }
+    }
+
+
+    //清楚Json 命令
+    fun clearJsonIoQueue(avChannel: Int) {
+        val iterator = mAVChannels.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next.mChannel == avChannel) {
+                next.IOCtrlJsonQueue?.removeAll()
                 break
             }
         }
@@ -845,7 +910,8 @@ open class Camera(
                                     val input = St_IOTCConnectInput()
                                     input.authenticationType = 0
                                     input.authKey = "00000000"
-                                    input.timeout = 60000
+                                    //单位秒  TUTK推荐 15-20都可以
+                                    input.timeout = 30
                                     mSID =
                                         IOTCAPIs.IOTC_Connect_ByUIDEx(getDeviceUid(), nGSID, input)
                                 } else {
@@ -1547,4 +1613,6 @@ open class Camera(
     override fun onAudioRecordVolume(volume: Double) {
         onAudioListener?.onAudioRecordVolume(volume)
     }
+
+    fun getCheckYCount() = checkYCount
 }

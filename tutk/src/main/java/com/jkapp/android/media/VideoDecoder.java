@@ -15,11 +15,11 @@ public class VideoDecoder {
     public static final int COLOR_FORMAT_RGB565LE = 1;
     public static final int COLOR_FORMAT_BGR32 = 2;
 
-    public VideoDecoder(int colorFormat, int avCodeId, Context cont) {
+    public VideoDecoder(int colorFormat, int avCodeId, Context cont,int checkYCount) {
         if (cont == null) {
             return;
         }
-        nativeInit(colorFormat, avCodeId, cont);
+        nativeInit(colorFormat, avCodeId, cont,checkYCount);
     }
 
     public void unfinalize() {
@@ -32,7 +32,7 @@ public class VideoDecoder {
      * @param colorFormat
      * @param avCodeId    0=H264  1=H265
      */
-    private native void nativeInit(int colorFormat, int avCodeId, Context context);
+    private native void nativeInit(int colorFormat, int avCodeId, Context context,int checkYCount);
 
     private native void nativeDestroy();
 

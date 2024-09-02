@@ -396,11 +396,12 @@ class SendIOJob(
                     avChannel?.refreshSid()
                     val avIndex = avChannel?.mAvIndex ?: -1
                     if (mSID >= 0 && avIndex >= 0 && (avChannel?.IOCtrlQueue?.isEmpty() == false
-                                || avChannel?.IOCtrlFastQueue?.isEmpty() == false)
+                                || avChannel?.IOCtrlFastQueue?.isEmpty() == false
+                                || avChannel?.IOCtrlJsonQueue?.isEmpty() == false)
                     ) {
                         val commonSize = avChannel?.IOCtrlQueue?.getQueueSize() ?: 0
                         val fastSize = avChannel?.IOCtrlFastQueue?.getQueueSize() ?: 0
-
+                        val jsonSize = avChannel?.IOCtrlJsonQueue?.getQueueSize()?:0
                         if (commonSize > 0) {
                             avChannel?.IOCtrlQueue?.Dequeue()?.let { data ->
                                 if (isRunning && isActive) {
@@ -442,6 +443,35 @@ class SendIOJob(
                                             TAG,
                                             "tutkio avSendIOCtrl fastIO failed : [$ret],0x${data.IOCtrlType.toHexString()}"
                                         )
+                                    }
+                                }
+                            }
+                        }else if(jsonSize > 0){
+                            avChannel?.IOCtrlJsonQueue?.Dequeue()?.let { data ->
+                                if (isRunning && isActive) {
+                                    val ret =AVAPIs.avSendJSONCtrlRequest(avIndex,data.requestJson,data.responseJson,data.timeOut)
+                                    if (ret >= 0) {
+                                        d(
+                                            TAG,
+                                            "tutkio avSendIOCtrl jsonIO  avio send (${avIndex},request=${data.requestJson}})"
+                                        )
+                                        data.responseJson.forEach {
+                                            d(
+                                                TAG,
+                                                "tutkio avSendIOCtrl jsonIO  avio send (${avIndex},response=${it}})"
+                                            )
+                                        }
+                                    } else {
+                                        d(
+                                            TAG,
+                                            "tutkio avSendIOCtrl jsonIO  avio send (${avIndex},request=${data.requestJson}})"
+                                        )
+                                        data.responseJson.forEach {
+                                            d(
+                                                TAG,
+                                                "tutkio avSendIOCtrl jsonIO  avio send (${avIndex},response=${it}})"
+                                            )
+                                        }
                                     }
                                 }
                             }

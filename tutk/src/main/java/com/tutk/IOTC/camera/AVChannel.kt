@@ -56,6 +56,7 @@ class AVChannel(
     var mAudioCodec: Int = 0
     var IOCtrlQueue: IOCtrlQueue? = IOCtrlQueue(IOCtrlQueueType.COMMON_IO_CMD_QUENE)
     var IOCtrlFastQueue: IOCtrlQueue? = IOCtrlQueue(IOCtrlQueueType.FAST_MOVE_CMD_QUENE)
+    var IOCtrlJsonQueue:IOCtrlJsonQueue? = IOCtrlJsonQueue()
     var VideoFrameQueue: AVFrameQueue? = AVFrameQueue()
     var AudioFrameQueue: AVFrameQueue? = AVFrameQueue()
 
@@ -170,6 +171,7 @@ class AVChannel(
 
         IOCtrlQueue?.removeAll()
         IOCtrlFastQueue?.removeAll()
+        IOCtrlJsonQueue?.removeAll()
     }
 
     /**视频直播*/

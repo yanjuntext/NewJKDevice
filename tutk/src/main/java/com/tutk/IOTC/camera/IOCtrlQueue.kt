@@ -66,3 +66,46 @@ class IOCtrlQueue {
 enum class IOCtrlQueueType {
     COMMON_IO_CMD_QUENE, FAST_MOVE_CMD_QUENE
 }
+
+/**
+ * 发送json数据
+ * */
+class IOCtrlJsonQueue {
+
+    val listData = mutableListOf<IOCTrlJsonSet>()
+    var isAutoRemoveBuf = false
+
+    @Synchronized
+    fun getQueueSize() = listData.size
+
+    @Synchronized
+    fun isEmpty() = listData.isEmpty()
+
+    @Synchronized
+    fun Enqueue(request: String, response: Array<String>, timeOut: Int) {
+        if (isAutoRemoveBuf && listData.size >= AVIOCTRL_MAX_SEND_SIZE) {
+            listData.clear()
+        }
+        listData.add(IOCTrlJsonSet(request, response, timeOut))
+    }
+
+
+    @Synchronized
+    fun Dequeue(): IOCTrlJsonSet? {
+        val iterator = listData.iterator()
+        return if (iterator.hasNext()) {
+            val value = iterator.next()
+            listData.remove(value)
+            value
+        } else {
+            null
+        }
+    }
+
+    fun removeAll() {
+        listData.clear()
+    }
+
+
+    class IOCTrlJsonSet(var requestJson: String, var responseJson: Array<String>, var timeOut: Int)
+}

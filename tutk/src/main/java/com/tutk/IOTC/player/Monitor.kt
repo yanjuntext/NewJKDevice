@@ -479,10 +479,11 @@ class Monitor @JvmOverloads constructor(
                                     try {
                                         videoCanvas = mSurHolder?.lockCanvas()
                                         videoCanvas?.let { canvas ->
-                                            canvas.drawColor(Color.BLACK)
+
                                             mLastFrame?.let { bitmap ->
-                                                Liotc.d("Monitor", "drawBitmap")
-                                                if (isThreadRunning()) {
+                                                Liotc.d("Monitor", "drawBitmap width=${bitmap.width} height=${bitmap.height}")
+                                                if (isThreadRunning() && !bitmap.isRecycled) {
+                                                    canvas.drawColor(Color.BLACK)
                                                     canvas.drawBitmap(
                                                         bitmap,
                                                         null,

@@ -714,10 +714,12 @@ class DecodeVideoJob(
                                             || avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265
                                         ) {
                                             if (!decoderIsInit) {
+
                                                 mVideoDecoder = VideoDecoder(
                                                     VideoDecoder.COLOR_FORMAT_BGR32,
                                                     if (avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265) 1 else 0,
-                                                    mContext?.get()
+                                                    mContext?.get(),
+                                                    avChannel.camera?.getCheckYCount()?:100
                                                 )
                                                 mVideoBuffer =
                                                     ByteBuffer.allocateDirect(MAX_FRAMEBUF)
@@ -734,6 +736,7 @@ class DecodeVideoJob(
                                             }
                                             mVideoBuffer?.flip()
                                             mVideoOutBuffer?.clear()
+                                            videoDecodeResult = -1
                                             videoDecodeResult = if (withYuv) {
                                                 d("yuv decode 111")
                                                 mVideoDecoder?.decodeWithYUV(
@@ -791,7 +794,7 @@ class DecodeVideoJob(
 //                                                    decoderIsInit = false
 //                                                }
 
-                                                if (videoWidth > 0 && videoHeight > 0) {
+                                                if (videoWidth > 0 && videoHeight > 0 && videoDecodeResult >= 0) {
                                                     bmp = Bitmap.createBitmap(
                                                         videoWidth,
                                                         videoHeight,
@@ -854,13 +857,16 @@ class DecodeVideoJob(
                                                 avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
 //                                                emit(bmp)
 //                                                emit(avFrame.timestamp)
-                                                emit(
-                                                    DecoderVideoInfo(
-                                                        bmp,
-                                                        avFrame.deviceCurrentTime
+                                                if(videoDecodeResult >= 0){
+                                                    emit(
+                                                        DecoderVideoInfo(
+                                                            bmp,
+                                                            avFrame.deviceCurrentTime
+                                                        )
                                                     )
-                                                )
-                                                avChannel.lastFrame = bmp
+                                                    avChannel.lastFrame = bmp
+                                                }
+
                                                 if (System.currentTimeMillis() - lastUpdateDispFrmPreSec > 60000) {
                                                     lastUpdateDispFrmPreSec =
                                                         System.currentTimeMillis()
