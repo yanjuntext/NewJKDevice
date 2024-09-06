@@ -234,8 +234,6 @@ class RecvVideoJob(
                                 if ((fram.isIFrame() || nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG) && LocalRecordHelper.recording) {
                                     LocalRecordHelper.setParseBuffer(fram.frmData)
                                     LocalRecordHelper.canRecording = true
-
-
                                 }
 
                                 if (!LocalRecordHelper.recording) {
@@ -814,7 +812,10 @@ class DecodeVideoJob(
                                                         bmp?.copyPixelsFromBuffer(wrap)
                                                         d("yuv decode 333")
                                                     } else {
-                                                        bmp?.copyPixelsFromBuffer(mVideoOutBuffer)
+                                                        mVideoOutBuffer?.let { buffer->
+                                                            bmp?.copyPixelsFromBuffer(buffer)
+                                                        }
+
                                                     }
                                                 }
 

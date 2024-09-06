@@ -153,7 +153,7 @@ class MonitorVer @JvmOverloads constructor(
         mGestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
-                    e1: MotionEvent,
+                    e1: MotionEvent?,
                     e2: MotionEvent,
                     velocityX: Float,
                     velocityY: Float
@@ -420,7 +420,7 @@ class MonitorVer @JvmOverloads constructor(
         }
     }
 
-    override fun onDraw(canvas: Canvas?) {
+    override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
     }
 

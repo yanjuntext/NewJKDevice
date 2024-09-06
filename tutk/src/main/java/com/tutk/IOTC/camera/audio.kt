@@ -587,6 +587,14 @@ class SendAudioJob(
 
     private fun avServStart2(): Int {
         d("avServStart2 SID[${avChannel?.SID}],[$mSendAudioSessionIndex]")
+//        val inConfig = St_AVServStartInConfig().apply {
+//            iotc_session_id = avChannel?.SID?:-1
+//            iotc_channel_id = mSendAudioSessionIndex
+//            timeout_sec = 60
+//            server_type = 65535
+//        }
+//        val outConfig = St_AVServStartOutConfig()
+//        AVAPIs.avServStartEx(inConfig,outConfig)
         mSendAudioChannelIndex =
             AVAPIs.avServStart2(avChannel?.SID ?: -1, null, null, 60, 65535, mSendAudioSessionIndex)
         d("avServStart2 [$mSendAudioChannelIndex],SID[${avChannel?.SID}]")

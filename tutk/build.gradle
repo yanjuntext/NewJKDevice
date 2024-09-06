@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    compileSdkVersion 33
+    compileSdkVersion 34
 
 
     defaultConfig {
 //        applicationId "com.tutk.IOTC"
         minSdkVersion 21
-        targetSdkVersion 33
-        versionCode 25
-        versionName "2.1.25"
+        targetSdkVersion 34
+        versionCode 26
+        versionName "2.1.26"
         //2304 * 1296
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -116,7 +116,7 @@ android {
 }
 afterEvaluate {
     publishing {
-        def versionName = "2.1.32" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+        def versionName = "2.1.33" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
         publications {
             // Creates a Maven publication called "release".
             release(MavenPublication) {

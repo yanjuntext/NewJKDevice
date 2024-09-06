@@ -52,22 +52,32 @@ fun Camera?.meoofGetStatus(
     } else false
 }
 
-/**meoof  获取喂食计划*/
+/**
+ * meoof  获取喂食计划
+ * @param todayFeedPlanSize 一天喂食计划最大个数
+ * */
 fun Camera?.meoofGetFeedPlan(
     channel: Int = Camera.DEFAULT_AV_CHANNEL,
+    todayFeedPlanSize:Int = 8,
     must: Boolean = false
 ): Boolean {
-    return meoofFeedPlan(channel, 0, ByteArray(720), must)
+    val dataSize = (todayFeedPlanSize * 9 + 2) * 8 + 1
+    return meoofFeedPlan(channel, 0, ByteArray(dataSize), must)
 }
+
 
 /**meoof 设置喂食计划*/
 fun Camera?.meoofSetFeedPlan(
     channel: Int = Camera.DEFAULT_AV_CHANNEL,
     list: MutableList<MeoofFeedPlanItem>,
+    todayFeedPlanSize: Int = 8,
     must: Boolean = false
 ): Boolean {
-    val itemSize = 74
-    val data = ByteArray(592)
+
+//    val itemSize = 74
+    val itemSize = todayFeedPlanSize * 9 + 2
+    val dataSize = itemSize * 8 + 1
+    val data = ByteArray(dataSize)
     list.forEachIndexed { index, info ->
         var start = itemSize * index
 

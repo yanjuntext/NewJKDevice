@@ -92,18 +92,32 @@ class StartJob(
                         val mReSend = IntArray(1)
                         d(TAG, "StartJob mSID[$mSID]，acc=${avChannel?.mViewAcc},pwd=${avChannel?.mViewPwd},channel=${avChannel?.mChannel}")
                         val result = avChannel?.let { avChannel ->
-                            val avIndex = AVAPIs.avClientStart2(
-                                mSID,
-                                avChannel.mViewAcc,
-                                avChannel.mViewPwd,
-                                30,
-                                nServType,
-                                avChannel.mChannel,
-                                mReSend
-                            )
-                            val servType = nServType[0].toLong()
+                            val inConfig = St_AVClientStartInConfig().apply {
+                                iotc_session_id = mSID
+                                iotc_channel_id = avChannel.mChannel
+                                account_or_identity = avChannel.mViewAcc
+                                password_or_token = avChannel.mViewPwd
+                                security_mode = 0
+                                auth_type = 0
+                                timeout_sec = 30
+                            }
+                            val outConfig = St_AVClientStartOutConfig().apply {
+                                server_type = 0
+                            }
+                            val avIndex = AVAPIs.avClientStartEx(inConfig,outConfig)
+//                            val avIndex = AVAPIs.avClientStart2(
+//                                mSID,
+//                                avChannel.mViewAcc,
+//                                avChannel.mViewPwd,
+//                                30,
+//                                nServType,
+//                                avChannel.mChannel,
+//                                mReSend
+//                            )
+//                            val servType = nServType[0].toLong()
+                            val servType = outConfig.server_type.toLong()
                             ensureActive()
-                            d(TAG, "avIndex=[$avIndex],servType=[$servType]")
+                            d(TAG, "avIndex=[$avIndex],servType=[$servType],outConfig=$outConfig")
 
                             if (avIndex == AVAPIs.AV_ER_NOT_INITIALIZED) {
                                 d(TAG, "avIndex==-20019,AV module has not been initialized")
@@ -252,7 +266,7 @@ class RecvIOJob(
                     avChannel?.let { avChannel ->
                         if (mSID >= 0 && (avChannel.mAvIndex >= 0)) {
                             val ioCtrlType = IntArray(1)
-                            val ioCtrlBuf = ByteArray(1024)
+                            val ioCtrlBuf = ByteArray(4096)
                             ensureActive()
                             val nRet = AVAPIs.avRecvIOCtrl(
                                 avChannel.mAvIndex,
@@ -414,7 +428,7 @@ class SendIOJob(
                                     if (ret >= 0) {
                                         d(
                                             TAG,
-                                            "tutkio avSendIOCtrl avio send (${avIndex},0x${data.IOCtrlType.toHexString()},${data.IOCtrlBuf?.getHex()})"
+                                            "tutkio avSendIOCtrl avio send size=${data.IOCtrlBuf?.size?:0} (${avIndex},0x${data.IOCtrlType.toHexString()},${data.IOCtrlBuf?.getHex()})"
                                         )
                                     } else {
                                         d(
