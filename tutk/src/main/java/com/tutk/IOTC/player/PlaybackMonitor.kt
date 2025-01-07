@@ -383,7 +383,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                 Liotc.d(TAG, "restartPlayback changePlayStatus 222")
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
             }
-        } else if (mAvChannel < 0 && mPlaybackStatus == null) {
+        }else  if ((mAvChannel < 0 && mPlaybackStatus == null) || (mPlaybackStatus == PlaybackStatus.ERROR)) {
             mRecordEvent?.let {
                 Liotc.d(TAG, "restartPlayback changePlayStatus 333")
                 mCamera.playback(

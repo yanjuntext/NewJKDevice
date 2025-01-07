@@ -52,6 +52,7 @@ class StartJob(
                     var connectingIndex = 0
                     var offlineIndex = 0
                     while (isRunning && isActive) {
+                        e(TAG, "StartJob start========= mSID=${mSID}")
                         ensureActive()
                         avChannel?.refreshSid()
 //                        if(mSID < 0){
@@ -72,7 +73,11 @@ class StartJob(
 //                                break
                                 connectingIndex = 0
                             }
+                            e(TAG, "StartJob start++++++++ mSID=${mSID}")
                             delay(1000L)
+                            e(TAG, "StartJob start++++++++1111111 mSID=${mSID}")
+                            ensureActive()
+                            e(TAG, "StartJob start++++++++2222222 mSID=${mSID}")
                             continue
                         }
                         ensureActive()
@@ -89,22 +94,29 @@ class StartJob(
                         }
                         ensureActive()
                         val nServType = intArrayOf(-1)
-                        val mReSend = IntArray(1)
+//                        val mReSend = IntArray(1)
+                        //				int[] nServType = new int[1];
+                        val mResend = IntArray(1)
                         d(TAG, "StartJob mSID[$mSID]，acc=${avChannel?.mViewAcc},pwd=${avChannel?.mViewPwd},channel=${avChannel?.mChannel}")
                         val result = avChannel?.let { avChannel ->
+                            d(TAG, "start-----")
                             val inConfig = St_AVClientStartInConfig().apply {
                                 iotc_session_id = mSID
                                 iotc_channel_id = avChannel.mChannel
                                 account_or_identity = avChannel.mViewAcc
                                 password_or_token = avChannel.mViewPwd
                                 security_mode = 0
-                                auth_type = 0
-                                timeout_sec = 30
+//                                auth_type = 0
+                                timeout_sec = 20
+                                resend = 1
                             }
                             val outConfig = St_AVClientStartOutConfig().apply {
-                                server_type = 0
+//                                server_type = -1
+//                                resend = 1
+//                                security_mode = 0
                             }
                             val avIndex = AVAPIs.avClientStartEx(inConfig,outConfig)
+                            val servType = outConfig.server_type.toLong()
 //                            val avIndex = AVAPIs.avClientStart2(
 //                                mSID,
 //                                avChannel.mViewAcc,
@@ -112,10 +124,12 @@ class StartJob(
 //                                30,
 //                                nServType,
 //                                avChannel.mChannel,
-//                                mReSend
+//                                mResend
 //                            )
 //                            val servType = nServType[0].toLong()
-                            val servType = outConfig.server_type.toLong()
+                            d(TAG, "start-----avIndex=$avIndex")
+
+
                             ensureActive()
                             d(TAG, "avIndex=[$avIndex],servType=[$servType],outConfig=$outConfig")
 
@@ -193,6 +207,7 @@ class StartJob(
         d(TAG,"stop---------")
         avChannel?.let { avChannel ->
             if (mSID >= 0) {
+                d(TAG,"startConnectJob stop---------avClientExit")
                 AVAPIs.avClientExit(mSID, avChannel.mChannel)
             }
         }

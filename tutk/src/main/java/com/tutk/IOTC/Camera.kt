@@ -212,7 +212,7 @@ open class Camera(
             IS_CHECK = check
         }
 
-        fun setCheckYCount(count:Int){
+        fun setCheckYCount(count: Int) {
             checkYCount = count
         }
     }
@@ -565,15 +565,20 @@ open class Camera(
      * @param responseJson 设备返回的json数据
      * @param timeOut 超时时间，单位秒。默认5秒
      * */
-    fun sendJsonCtrl(avChannel: Int,requestJson:String,responseJson:Array<String>,timeOut:Int = 5){
-        if(requestJson.isEmpty()) return
+    fun sendJsonCtrl(
+        avChannel: Int,
+        requestJson: String,
+        responseJson: Array<String>,
+        timeOut: Int = 5
+    ) {
+        if (requestJson.isEmpty()) return
 
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val next = iterator.next()
             if (next.mChannel == avChannel) {
                 if ((next.IOCtrlJsonQueue?.getQueueSize() ?: 0) < AVIOCTRL_FAST_MAX_SEND_SIZE) {
-                    next.IOCtrlJsonQueue?.Enqueue(requestJson,responseJson,timeOut)
+                    next.IOCtrlJsonQueue?.Enqueue(requestJson, responseJson, timeOut)
                 }
                 return
             }
@@ -587,15 +592,25 @@ open class Camera(
      * @param responseJson 设备返回的json数据
      * @param timeOut 超时时间，单位秒。默认5秒
      * */
-    suspend fun sendJsonCtrlWithResponse(avChannel: Int, requestJson: String, responseJson: Array<String>, timeOut: Int=5):Int{
-        if(requestJson.isEmpty()) return -1
+    suspend fun sendJsonCtrlWithResponse(
+        avChannel: Int,
+        requestJson: String,
+        responseJson: Array<String>,
+        timeOut: Int = 5
+    ): Int {
+        if (requestJson.isEmpty()) return -1
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val next = iterator.next()
             if (next.mChannel == avChannel) {
                 val mAvIndex = next.mAvIndex
-                if(mAvIndex >= 0){
-                    return AVAPIs.avSendJSONCtrlRequest(mAvIndex,requestJson,responseJson,timeOut)
+                if (mAvIndex >= 0) {
+                    return AVAPIs.avSendJSONCtrlRequest(
+                        mAvIndex,
+                        requestJson,
+                        responseJson,
+                        timeOut
+                    )
                 }
                 return mAvIndex
             }
@@ -636,13 +651,14 @@ open class Camera(
     }
 
     fun disconnect() {
-        Liotc.d("disconnect", "disconnect size[${mAVChannels.size}] stop--------- $this")
+        Liotc.d("disconnect", "startConnectJob disconnect size[${mAVChannels.size}] stop--------- $this")
         handler.removeMessages(OPT_RECONNECT)
+        stopShow(0)
         val iterator = mAVChannels.iterator()
-        Liotc.d("disconnect", "disconnect size[${mAVChannels.size}] stop--------- 1111")
+        Liotc.d("disconnect", "startConnectJob disconnect size[${mAVChannels.size}] stop--------- 1111")
         while (iterator.hasNext()) {
             val next = iterator.next()
-            d("RecvAudioJob", "unInitAudioTrack releaseAudio stop disconnect  stop---------")
+            d("RecvAudioJob", "startConnectJob unInitAudioTrack releaseAudio stop disconnect  stop---------")
             next.stop()
             if (next.mAvIndex >= 0) {
                 AVAPIs.avClientStop(next.mAvIndex)
@@ -658,10 +674,12 @@ open class Camera(
 
         mSupportStreamList.clear()
         if (nGSID >= 0) {
+            Liotc.d("disconnect", "startConnectJob disconnect IOTC_Connect_Stop_BySID")
             IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
         }
         nGSID = -1
         if (mSID >= 0) {
+            Liotc.d("disconnect", "startConnectJob disconnect IOTC_Session_Close")
             IOTCAPIs.IOTC_Session_Close(mSID)
         }
         mSID = -1
@@ -906,15 +924,23 @@ open class Camera(
                             if (nGSID >= 0) {
                                 //旧设备连接方式
                                 if (isNewApiDevice()) {
+                                    d(
+                                        "startConnectJob",
+                                        "authkey connect"
+                                    )
                                     //新设备需要使用AUTHKEY才可以连接
                                     val input = St_IOTCConnectInput()
                                     input.authenticationType = 0
                                     input.authKey = "00000000"
                                     //单位秒  TUTK推荐 15-20都可以
-                                    input.timeout = 30
+                                    input.timeout = 20
                                     mSID =
                                         IOTCAPIs.IOTC_Connect_ByUIDEx(getDeviceUid(), nGSID, input)
                                 } else {
+                                    d(
+                                        "startConnectJob",
+                                        "old connect"
+                                    )
                                     mSID =
                                         IOTCAPIs.IOTC_Connect_ByUID_Parallel(getDeviceUid(), nGSID)
                                 }
@@ -986,10 +1012,10 @@ open class Camera(
                     first = false
 
                     if (mSID >= 0 && mSID != IOTC_CONNECT_ING) {
-                        d("startConnectJob", "start check dev status 111  random=[$random]")
+                        d("startConnectJob", "start check dev status 111  sid=$mSID random=[$random]")
                         delay(30000L)
                         ensureActive()
-                        d("startConnectJob", "start check dev status 2222  random=[$random]")
+                        d("startConnectJob", "start check dev status 2222  sid=$mSID  random=[$random]")
                         if (!connecting || !isActive) {
                             d(
                                 "startConnectJob",
@@ -998,11 +1024,12 @@ open class Camera(
                             break
                         }
                         if (mSID >= 0 && mSID != IOTC_CONNECT_ING) {
+                            d("startConnectJob", "start check dev status sid=$mSID")
                             ret = IOTCAPIs.IOTC_Session_Check_Ex(mSID, stSInfoEx)
                             ensureActive()
                             d(
                                 "startConnectJob",
-                                "ThreadCheckDevStatus status[$ret],[$uid]  random=[$random]"
+                                "ThreadCheckDevStatus status[$ret],[$uid]  random=[$random],msid=[$mSID]"
                             )
 
                             if (ret >= 0) {
@@ -1018,17 +1045,19 @@ open class Camera(
                             } else if (ret == IOTCAPIs.IOTC_ER_REMOTE_TIMEOUT_DISCONNECT
                                 || ret == IOTCAPIs.IOTC_ER_TIMEOUT
                             ) {
+
+                                mSID = -1
+                                setAvChannelSid(mSID)
                                 if (isActive) {
                                     emit(CONNECTION_STATE_TIMEOUT)
                                 }
+                            } else {
+
                                 mSID = -1
                                 setAvChannelSid(mSID)
-                            } else {
                                 if (isActive) {
                                     emit(CONNECTION_STATE_CONNECT_FAILED)
                                 }
-                                mSID = -1
-                                setAvChannelSid(mSID)
                             }
                         }
                     }
@@ -1084,7 +1113,7 @@ open class Camera(
             IOTCAPIs.IOTC_Connect_Stop_BySID(nGSID)
         }
 
-        d("startConnectJob", "stopConnectJob time[${System.currentTimeMillis() - s}]")
+        d("startConnectJob", "stopConnectJob nGSID=$nGSID time[${System.currentTimeMillis() - s}]")
         connectJob?.cancel()
         connectJob = null
     }
@@ -1127,10 +1156,11 @@ open class Camera(
     internal fun getSid() = mSID
 
     fun stop(avChannel: Int) {
-        d("RecvAudioJob", "unInitAudioTrack releaseAudio stop stop")
+        d("RecvAudioJob", "startConnectJob unInitAudioTrack releaseAudio stop stop")
         val iterator = mAVChannels.iterator()
         var channel: AVChannel? = null
         while (iterator.hasNext()) {
+            d("RecvAudioJob", "startConnectJob unInitAudioTrack releaseAudio stop stop-----")
             val next = iterator.next()
             if (next.mChannel == avChannel) {
                 next.stop()
@@ -1187,6 +1217,7 @@ open class Camera(
 
     @Synchronized
     internal fun stopShow(channel: Int) {
+        d(TAG,"stopShowstopShowstopShow channel=$channel")
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
