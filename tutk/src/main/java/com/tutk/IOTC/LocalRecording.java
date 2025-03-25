@@ -45,7 +45,7 @@ public class LocalRecording {
         Object var2 = this.bd.bw;
         synchronized(this.bd.bw) {
             this.bd.buffer = var1;
-            Liotc.INSTANCE.i("code", "setsize");
+//            Liotc.INSTANCE.i("code", "setsize");
             this.bd.bw.notify();
         }
     }
@@ -84,9 +84,9 @@ public class LocalRecording {
             long var3 = var1 - this.bm;
             int var5 = (int)(var3 - this.bu.GetVideoTimeStamp());
             int var6 = (int)(var3 - this.bu.GetAudioTimeStamp());
-            Liotc.INSTANCE.e("LocalRecording", "time = " + var3);
-            Liotc.INSTANCE.e("LocalRecording", "video duration = " + this.bu.GetVideoTimeStamp() + " , " + var5);
-            Liotc.INSTANCE.e("LocalRecording", "audio duration = " + this.bu.GetAudioTimeStamp() + " , " + var6);
+//            Liotc.INSTANCE.e("LocalRecording", "time = " + var3);
+//            Liotc.INSTANCE.e("LocalRecording", "video duration = " + this.bu.GetVideoTimeStamp() + " , " + var5);
+//            Liotc.INSTANCE.e("LocalRecording", "audio duration = " + this.bu.GetAudioTimeStamp() + " , " + var6);
             if (var5 > 0) {
                 byte[] var7 = new byte[1024];
                 this.bu.WriteVideo(var7, var7.length, var5);
@@ -119,22 +119,22 @@ public class LocalRecording {
                 }
             }
 
-            Liotc.INSTANCE.e("LocalRecording", "end videoTimeStamp = " + this.bu.GetVideoTimeStamp());
-            Liotc.INSTANCE.e("LocalRecording", "end audioTimeStamp = " + this.bu.GetAudioTimeStamp());
+//            Liotc.INSTANCE.e("LocalRecording", "end videoTimeStamp = " + this.bu.GetVideoTimeStamp());
+//            Liotc.INSTANCE.e("LocalRecording", "end audioTimeStamp = " + this.bu.GetAudioTimeStamp());
         }
     }
 
     public boolean startRecording(int var1, String var2, boolean var3) {
         if (var1 != VideoDecoder.VideoCodec.VIDEO_CODEC_H264.getValue()
                 && var1 != VideoDecoder.VideoCodec.VIDEO_CODEC_HEVC.getValue()) {
-            Liotc.INSTANCE.e("LocalRecording", "Can not support the video codec : " + var1);
+//            Liotc.INSTANCE.e("LocalRecording", "Can not support the video codec : " + var1);
             return false;
         } else {
             synchronized(this) {
                 this.bo = false;
                 this.bp = false;
                 this.bp = false;
-                Liotc.INSTANCE.e("LocalRecording", "111");
+//                Liotc.INSTANCE.e("LocalRecording", "111");
                 if (this.bq) {
                     return false;
                 }
@@ -143,31 +143,31 @@ public class LocalRecording {
                 if (!this.bs && (this.bg == -1 || this.bh == -1 || this.bi == -1)) {
                     var5 = this.be;
                     synchronized(this.be) {
-                        Liotc.INSTANCE.e("LocalRecording", "222");
+//                        Liotc.INSTANCE.e("LocalRecording", "222");
                         try {
                             this.be.wait(1000L);
                         } catch (InterruptedException var15) {
                             ;
                         }
-                        Liotc.INSTANCE.e("LocalRecording", "333");
+//                        Liotc.INSTANCE.e("LocalRecording", "333");
                         if (this.bg == -1 || this.bh == -1 || this.bi == -1) {
-                            Liotc.INSTANCE.e("LocalRecording", "can not get the audio enviroment settings.");
+//                            Liotc.INSTANCE.e("LocalRecording", "can not get the audio enviroment settings.");
                             this.bs = true;
                         }
                     }
                 }
-                Liotc.INSTANCE.e("LocalRecording", "4444");
+//                Liotc.INSTANCE.e("LocalRecording", "4444");
                 this.bt = var2;
                 if (var1 == VideoDecoder.VideoCodec.VIDEO_CODEC_HEVC.getValue()) {
                     this.bu.Open(var2, 2);
                 } else {
                     this.bu.Open(var2, 1);
                 }
-                Liotc.INSTANCE.e("LocalRecording", "555");
+//                Liotc.INSTANCE.e("LocalRecording", "555");
                 if (!this.bs) {
                     this.bu.SetAudioTrack(this.bh, this.bg);
                 }
-                Liotc.INSTANCE.e("LocalRecording", "666");
+//                Liotc.INSTANCE.e("LocalRecording", "666");
                 if (this.bd.buffer == null) {
 //                    try {
 //                        this.bd.bw.wait();
@@ -185,7 +185,7 @@ public class LocalRecording {
                     }
                 }
 
-                Liotc.INSTANCE.e("LocalRecording", "startRecording: Record_videoWidth = " + this.bk + " Record_videoHeight = " + this.bl);
+//                Liotc.INSTANCE.e("LocalRecording", "startRecording: Record_videoWidth = " + this.bk + " Record_videoHeight = " + this.bl);
                 this.bu.SetVideoTrack(this.bk, this.bl);
                 if (this.bv != null) {
                     this.bv.release();
@@ -264,7 +264,7 @@ public class LocalRecording {
 
     public boolean recodeAudioFrame(byte[] var1, int var2, int var3) {
         synchronized(this) {
-            Liotc.INSTANCE.e("recodeAudioFrame",this.bq +"---------" + this.bs +"-----"+this.bp);
+//            Liotc.INSTANCE.e("recodeAudioFrame",this.bq +"---------" + this.bs +"-----"+this.bp);
             if (this.bq && !this.bs) {
                 if (!this.bp) {
                     return false;
@@ -274,9 +274,9 @@ public class LocalRecording {
                     System.arraycopy(var1, 0, var5, 0, var2);
                     byte[] var6 = new byte[20480];
                     int var7 = this.bv.encode(var5, var2, var6);
-                    Liotc.INSTANCE.e("LocalRecording", "len = " + var7 + ", duration : " + var3 + "(" + this.bj + ")");
+//                    Liotc.INSTANCE.e("LocalRecording", "len = " + var7 + ", duration : " + var3 + "(" + this.bj + ")");
                     if (var7 > 0) {
-                        Liotc.INSTANCE.e("BB", "mAudioDuration: " + this.bj);
+//                        Liotc.INSTANCE.e("BB", "mAudioDuration: " + this.bj);
                         this.bu.WriteAudio(var6, var7, this.bj);
                         this.bj = 0;
                         return true;
@@ -318,7 +318,7 @@ public class LocalRecording {
             }
 
             int var5 = this.h();
-            Liotc.INSTANCE.e("BB", "VideoDuration: " + var5);
+//            Liotc.INSTANCE.e("BB", "VideoDuration: " + var5);
             this.bu.WriteVideo(var1, var2, var5);
         }
 
