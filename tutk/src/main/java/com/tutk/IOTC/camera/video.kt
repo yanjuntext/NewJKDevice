@@ -1252,9 +1252,9 @@ internal object LocalRecordHelper {
             TAG,
             "startRecord setAudioEnvironment[$samplerate],channel[$channel]，databits[$databits],[$recording] "
         )
-        if (recording) {
+//        if (recording) {
             mLocalRecord.setAudioEnvironment(samplerate, channel, databits)
-        }
+//        }
     }
 
     internal fun recodeAudioFrame(data: ByteArray?, size: Int, length: Int) {
