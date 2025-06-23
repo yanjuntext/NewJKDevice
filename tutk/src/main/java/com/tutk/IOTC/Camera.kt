@@ -726,19 +726,25 @@ open class Camera(
 
     /**广播设备在线状态*/
     private fun broadCameraSessionStatus(status: Int) {
-
-        val iterator = mOnSessionChannelCallbacks.iterator()
-        while (iterator.hasNext()) {
-            iterator.next().receiveSessionInfo(this, status)
+        mOnSessionChannelCallbacks.toList().forEach {
+            it.receiveSessionInfo(this,status)
         }
+//        val iterator = mOnSessionChannelCallbacks.iterator()
+//        while (iterator.hasNext()) {
+//            iterator.next().receiveSessionInfo(this, status)
+//        }
     }
 
     /**广播设备在线状态  channel*/
     private fun broadCameraChannelInfo(channel: Int, status: Int) {
-        val iterator = mOnSessionChannelCallbacks.iterator()
-        while (iterator.hasNext()) {
-            iterator.next().receiveChannelInfo(this, channel, status)
+        mOnSessionChannelCallbacks.toList().forEach {
+            it.receiveChannelInfo(this,channel,status)
         }
+
+//        val iterator = mOnSessionChannelCallbacks.iterator()
+//        while (iterator.hasNext()) {
+//            iterator.next().receiveChannelInfo(this, channel, status)
+//        }
     }
 
     /**广播设备接收到的数据*/
@@ -807,6 +813,13 @@ open class Camera(
             }
         }
 
+//        mOnIOCallbacks.toList().forEach {next->
+//            d(
+//                "Monitor",
+//                "onAVChannelRecv broadCameraReceiverIOCtrlData -------${next::class.java.name}"
+//            )
+//            next.receiveIOCtrlData(this, channel, type, data)
+//        }
         val iterator = mOnIOCallbacks.iterator()
         while (iterator.hasNext()) {
             val next = iterator.next()
@@ -828,6 +841,9 @@ open class Camera(
         recvFrame: Int,
         dispFrame: Int
     ) {
+//        mOnExtraCallbacks.toList().forEach {
+//            it.receiveExtraInfo(this, channel, type, recvFrame, dispFrame)
+//        }
         val iterator = mOnExtraCallbacks.iterator()
         while (iterator.hasNext()) {
             iterator.next().receiveExtraInfo(this, channel, type, recvFrame, dispFrame)
@@ -835,6 +851,9 @@ open class Camera(
     }
 
     private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?) {
+//        mOnFrameCallbacks.toList().forEach {
+//            it.receiveFrameData(this, channel, bitmap)
+//        }
         val iterator = mOnFrameCallbacks.iterator()
         while (iterator.hasNext()) {
             iterator.next().receiveFrameData(this, channel, bitmap)
@@ -842,6 +861,7 @@ open class Camera(
     }
 
     private fun broadCameraReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long) {
+
         val iterator = mOnFrameCallbacks.iterator()
         while (iterator.hasNext()) {
             iterator.next().receiveFrameData(this, channel, bitmap, time)
@@ -1119,6 +1139,7 @@ open class Camera(
     }
 
     private fun setAvChannelSid(sid: Int) {
+
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val next = iterator.next()

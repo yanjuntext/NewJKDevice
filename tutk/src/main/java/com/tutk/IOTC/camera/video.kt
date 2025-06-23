@@ -712,6 +712,7 @@ class DecodeVideoJob(
                             lastFrameTimeStamp = avFrame.timestamp.toLong()
 
                             while (isActive) {
+                                ensureActive()
                                 if (avChannel.VideoFrameQueue?.isFirstIFrame() != true) {
                                     avFrame = avChannel.VideoFrameQueue?.removeHead()
                                     if (avFrame == null) {
@@ -720,7 +721,7 @@ class DecodeVideoJob(
                                         break
                                     } else {
                                         skipTime += (avFrame.timestamp - lastFrameTimeStamp)
-                                        d("low decode performance, drop [${if (avFrame.isIFrame()) "I" else "P"}]frame, skip time:[${avFrame.timestamp - lastFrameTimeStamp}],total skip:[$skipTime],index[${avFrame.frmNo}],camera video data")
+                                        d("low decode performance, drop [${if (avFrame?.isIFrame() == true) "I" else "P"}]frame, skip time:[${avFrame.timestamp - lastFrameTimeStamp}],total skip:[$skipTime],index[${avFrame.frmNo}],camera video data")
                                         lastFrameTimeStamp = avFrame.timestamp.toLong()
                                     }
                                 } else {
@@ -865,6 +866,7 @@ class DecodeVideoJob(
                                                         videoHeight,
                                                         Bitmap.Config.ARGB_8888
                                                     )
+
                                                     if (withYuv) {
                                                         d("yuv decode 222")
                                                         LibyuvUtils.I420ToRGBA(
@@ -879,9 +881,12 @@ class DecodeVideoJob(
                                                         bmp?.copyPixelsFromBuffer(wrap)
                                                         d("yuv decode 333")
                                                     } else {
-                                                        mVideoOutBuffer?.let { buffer ->
-                                                            bmp?.copyPixelsFromBuffer(buffer)
+                                                        if( videoWidth * videoHeight * 4 <= MAX_FRAMEBUF){
+                                                            mVideoOutBuffer?.let { buffer ->
+                                                                bmp?.copyPixelsFromBuffer(buffer)
+                                                            }
                                                         }
+
 
                                                     }
                                                 }
