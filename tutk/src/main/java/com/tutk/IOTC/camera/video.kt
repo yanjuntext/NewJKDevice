@@ -82,9 +82,8 @@ class RecvVideoJob(
     private fun getFrameBitmapInfo(bmp: Bitmap?, deviceTime: Long) =
         RecvVideoInfo(-2, bitmap = bmp, deviceTime = deviceTime)
 
-    private fun getFrameTimeInfo(deviceTime: Long) =
+    private fun getFrameTimeInfo( deviceTime: Long) =
         RecvVideoInfo(-3, deviceTime = deviceTime)
-
     private fun requestIFrame() {
         if (isRunning && isActive() && getAvIndex() >= 0) {
             d(TAG, "发送511命令")
@@ -103,7 +102,6 @@ class RecvVideoJob(
             return
         }
         isChangeVideoQuality = false
-        val time = 0L
         runJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
                 avChannel?.refreshSid()
@@ -158,9 +156,6 @@ class RecvVideoJob(
                 var lastIFrameSize = -1
                 //发送过511命令之后再通知上层清楚命令，优先保证视频获取
                 emit(RecvVideoInfo(Camera.EXTRA_EVENT_HAD_CLEAN_VIDEOBUF))
-
-                var lastIFrame: ByteArray? = null
-                var time = 0L
                 while (isRunning) {
                     avChannel?.refreshSid()
                     if (mSID >= 0 && getAvIndex() >= 0) {
@@ -199,9 +194,6 @@ class RecvVideoJob(
                             "AVAPIs.AV_ER_INCOMPLETE_FRAME========== nReadSize=[$nReadSize],running[$isRunning]"
                         )
 
-                        d(TAG, "AVAPIs.AV_ER_INCOMPLETE_FRAME=" + pFrmInfoBuf.getHex())
-
-                        var isFirstRecordingIFrame = false;
                         when {
                             nReadSize >= 0 -> {
                                 avChannel?.videoBPS = (avChannel?.videoBPS ?: 0) + outBufSize[0]
@@ -230,70 +222,32 @@ class RecvVideoJob(
 
 //                            if (avChannel?.recording == true && fram.isIFrame() && LocalRecordHelper.recording) {
 
-//                                if(fram.isIFrame() || nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG){
-//
-//                                    lastIFrame = ByteArray(fram.frmSize)
-//                                    System.arraycopy(fram.frmData,0,lastIFrame,0,fram.frmSize)
-//                                }
+
                                 if (!fram.isIFrame() && LocalRecordHelper.recording && !isFirstRecording && nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG) {
                                     isFirstRecording = true
-//                                    requestIFrame()
+                                    requestIFrame()
                                 }
-                                if (nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG && !isFirstRecording && LocalRecordHelper.recording) {
+                                if(nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG && !isFirstRecording && LocalRecordHelper.recording){
                                     isFirstIFrame = true
                                 }
-                                if (LocalRecordHelper.recording) {
-                                    d(
-                                        TAG,
-                                        "***LocalRecordHelper recording iFrame=---${fram.isIFrame()}"
-                                    )
-                                }
 
-//                                if(LocalRecordHelper.recording){
-//                                    if(lastIFrame != null){
-//                                        d(TAG,"***-------LocalRecordHelper recording iFrame")
-//                                        LocalRecordHelper.setParseBuffer(lastIFrame)
-//                                        LocalRecordHelper.canRecording = true
-//                                        val fData = ByteArray(lastIFrame.size)
-//                                        System.arraycopy(lastIFrame,0,fData,0,lastIFrame.size)
-//                                        LocalRecordHelper.recordVideoFrame(fData,fData.size,true)
-//                                        lastIFrame = null
-//                                    }else{
-//                                        val fData = ByteArray(fram.frmSize)
-//                                        System.arraycopy(fram.frmData,0,fData,0,fram.frmSize)
-//                                        d(TAG,"***-------LocalRecordHelper recording iFrame recordVideoFrame")
-//                                        LocalRecordHelper.recordVideoFrame(fData,fData.size,fram.isIFrame())
-//                                    }
-//                                }
-
-//
-                                if (LocalRecordHelper.recording) {
-//                                    if ((fram.isIFrame() || nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG) ) {
-                                    if(time == 0L){
-                                        time = System.currentTimeMillis()
-                                    }
-                                    if(fram.isIFrame()){
-                                        val cT = System.currentTimeMillis()
-                                        d(TAG,"recrddddddddd time==${(cT - time)/1000}")
-                                        time = cT
-                                    }
-                                    d(TAG, "333LocalRecordHelper recording iFrame")
+                                if ((fram.isIFrame() || nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG) && LocalRecordHelper.recording) {
                                     LocalRecordHelper.setParseBuffer(fram.frmData)
                                     LocalRecordHelper.canRecording = true
-//                                    }
-                                    val fData = ByteArray(fram.frmSize)
-                                    System.arraycopy(fram.frmData, 0, fData, 0, fram.frmSize)
-                                    d(TAG, "333LocalRecordHelper recording iFrame recordVideoFrame")
+
+
+
+                                    val _data = ByteArray(fram.frmSize)
+                                    System.arraycopy(fram.frmData, 0, _data, 0, fram.frmSize)
                                     LocalRecordHelper.recordVideoFrame(
-                                        fData,
-                                        fData.size,
+                                        _data,
+                                        _data.size,
                                         fram.isIFrame()
                                     )
                                 }
 
                                 if (!LocalRecordHelper.recording) {
                                     isFirstRecording = false
-                                    time = 0L
                                 }
 
 
@@ -313,7 +267,6 @@ class RecvVideoJob(
                                             avChannel?.VideoFrameQueue?.addLast(fram)
                                         }
                                     }
-
                                     AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> {
                                         if (fram.isIFrame() && isFirstIFrame) {
                                             avChannel?.IOCtrlQueue?.Enqueue(
@@ -332,15 +285,14 @@ class RecvVideoJob(
                                             avChannel?.VideoFrameQueue?.addLast(fram)
                                         }
                                     }
-
                                     AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
-//                                        if (LocalRecordHelper.recording) {
-//                                            LocalRecordHelper.recordVideoFrame(
-//                                                fram.frmData,
-//                                                fram.frmSize,
-//                                                true
-//                                            )
-//                                        }
+                                        if (LocalRecordHelper.recording) {
+                                            LocalRecordHelper.recordVideoFrame(
+                                                fram.frmData,
+                                                fram.frmSize,
+                                                true
+                                            )
+                                        }
                                         try {
                                             val bmp =
                                                 BitmapFactory.decodeByteArray(
@@ -348,7 +300,7 @@ class RecvVideoJob(
                                                     0,
                                                     nReadSize
                                                 )
-                                            d(TAG, "MEDIA_CODEC_VIDEO_MJPEG bmp----")
+                                            d(TAG,"MEDIA_CODEC_VIDEO_MJPEG bmp----")
                                             emit(getFrameBitmapInfo(bmp, fram.deviceCurrentTime))
                                             avChannel?.lastFrame = bmp
                                         } catch (e: Exception) {
@@ -358,12 +310,10 @@ class RecvVideoJob(
                                     }
                                 }
                             }
-
                             nReadSize == AVAPIs.AV_ER_SESSION_CLOSE_BY_REMOTE
                                     || nReadSize == AVAPIs.AV_ER_REMOTE_TIMEOUT_DISCONNECT -> {
                                 d(TAG, "nReadSize=[$nReadSize]")
                             }
-
                             nReadSize == AVAPIs.AV_ER_DATA_NOREADY -> {
                                 delay(32)
                                 d(TAG, "-------------- mNoFramIndex=${mNoFramIndex}")
@@ -375,7 +325,7 @@ class RecvVideoJob(
                                         if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
                                             d(TAG, "*** mNoFramIndex=${mNoFramIndex}")
                                             //重新请求IFrame
-                                            if (nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG) {
+                                            if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG){
                                                 avChannel?.IOCtrlQueue?.Enqueue(
                                                     getAvIndex(), 511,
                                                     Packet.intToByteArray_Little(0)
@@ -389,7 +339,6 @@ class RecvVideoJob(
                                     d(TAG, "###--- mNoFramIndex=${mNoFramIndex}")
                                 }
                             }
-
                             nReadSize == AVAPIs.AV_ER_MEM_INSUFF
                                     || nReadSize == AVAPIs.AV_ER_LOSED_THIS_FRAME -> {
                                 mNoFramIndex = 0
@@ -397,7 +346,6 @@ class RecvVideoJob(
                                 nIncompleteFrmCount++
                                 nFlow_total_frame_count++
                             }
-
                             nReadSize == AVAPIs.AV_ER_INCOMPLETE_FRAME -> {
                                 d(TAG, "AVAPIs.AV_ER_INCOMPLETE_FRAME==========")
                                 mNoFramIndex = 0
@@ -416,7 +364,7 @@ class RecvVideoJob(
                                         Packet.byteArrayToShort_Little(pFrmInfoBuf, 0).toInt()
 
                                     when (nCodecId) {
-                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
+                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG->{
 //                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
                                             nIncompleteFrmCount++
 //                                            } else {
@@ -445,11 +393,9 @@ class RecvVideoJob(
 //                                            }
 
                                         }
-
                                         AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> {
                                             nIncompleteFrmCount++
                                         }
-
                                         AVFrame.MEDIA_CODEC_VIDEO_H264,
                                         AVFrame.MEDIA_CODEC_VIDEO_H265 -> {
                                             if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
@@ -508,7 +454,6 @@ class RecvVideoJob(
                                 it.dispFrame
                             )
                         }
-
                         -1 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameInfo(
                                 avChannel?.mChannel ?: -1,
@@ -519,7 +464,6 @@ class RecvVideoJob(
                                 it.incompleteFrameCount
                             )
                         }
-
                         -2 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameData(
                                 avChannel?.mChannel ?: -1, it.bitmap,
@@ -528,8 +472,7 @@ class RecvVideoJob(
                                 avChannel?.mChannel ?: -1, it.bitmap, it.deviceTime
                             )
                         }
-
-                        -3 -> {
+                        -3->{
                             iavChannelStatus?.onAVChannelReceiverFrameDataTime(it.deviceTime)
                         }
                     }
@@ -721,7 +664,7 @@ class DecodeVideoJob(
                                         break
                                     } else {
                                         skipTime += (avFrame.timestamp - lastFrameTimeStamp)
-                                        d("low decode performance, drop [${if (avFrame?.isIFrame() == true) "I" else "P"}]frame, skip time:[${avFrame.timestamp - lastFrameTimeStamp}],total skip:[$skipTime],index[${avFrame.frmNo}],camera video data")
+                                        d("low decode performance, drop [${if (avFrame.isIFrame()) "I" else "P"}]frame, skip time:[${avFrame.timestamp - lastFrameTimeStamp}],total skip:[$skipTime],index[${avFrame.frmNo}],camera video data")
                                         lastFrameTimeStamp = avFrame.timestamp.toLong()
                                     }
                                 } else {
@@ -785,7 +728,7 @@ class DecodeVideoJob(
                                                     VideoDecoder.COLOR_FORMAT_BGR32,
                                                     if (avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265) 1 else 0,
                                                     mContext?.get(),
-                                                    avChannel.camera?.getCheckYCount() ?: 100
+                                                    avChannel.camera?.getCheckYCount()?:100
                                                 )
                                                 mVideoBuffer =
                                                     ByteBuffer.allocateDirect(MAX_FRAMEBUF)
@@ -866,7 +809,6 @@ class DecodeVideoJob(
                                                         videoHeight,
                                                         Bitmap.Config.ARGB_8888
                                                     )
-
                                                     if (withYuv) {
                                                         d("yuv decode 222")
                                                         LibyuvUtils.I420ToRGBA(
@@ -881,8 +823,8 @@ class DecodeVideoJob(
                                                         bmp?.copyPixelsFromBuffer(wrap)
                                                         d("yuv decode 333")
                                                     } else {
-                                                        if( videoWidth * videoHeight * 4 <= MAX_FRAMEBUF){
-                                                            mVideoOutBuffer?.let { buffer ->
+                                                        if(videoWidth * videoHeight * 4 <= MAX_FRAMEBUF){
+                                                            mVideoOutBuffer?.let { buffer->
                                                                 bmp?.copyPixelsFromBuffer(buffer)
                                                             }
                                                         }
@@ -930,7 +872,7 @@ class DecodeVideoJob(
                                                 avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
 //                                                emit(bmp)
 //                                                emit(avFrame.timestamp)
-                                                if (videoDecodeResult >= 0) {
+                                                if(videoDecodeResult >= 0){
                                                     emit(
                                                         DecoderVideoInfo(
                                                             bmp,
@@ -1169,22 +1111,20 @@ internal object LocalRecordHelper {
                 }
 //                delay(500)
                 var delaycount = 0
-//                while (!canRecording) {
-//                    delay(5)
-//                    delaycount++
-//                    if (delaycount > 700) {
-//                        break
-//                    }
-//                }
+                while (!canRecording) {
+                    delay(5)
+                    delaycount++
+                    if (delaycount > 700) {
+                        break
+                    }
+                }
 
                 if (recording && isActive) {
-                    d(TAG, "---startRecord width[$width],height[$height] 1")
+                    d(TAG, "startRecord width[$width],height[$height] 1")
                     mLocalRecord.setRecorderVideoTrack(width, height)
-                    d(TAG, "---startRecord width[$width],height[$height] 2,codeId[$codeId]")
+                    d(TAG, "startRecord width[$width],height[$height] 2,codeId[$codeId]")
                     mLocalRecord.startRecording(codeId, fileName, true)
-                    d(TAG, "---startRecord width[$width],height[$height],[$codeId],[$fileName] 3")
-
-                    d(TAG,"recrddddddddd *****")
+                    d(TAG, "startRecord width[$width],height[$height],[$codeId],[$fileName] 3")
                     startRecording = true
                     mRecordTime = 0
                     emit(1)
