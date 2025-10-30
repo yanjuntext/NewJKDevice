@@ -138,12 +138,16 @@ class MonitorVer @JvmOverloads constructor(
     var withYuv = false
 
     private var canDraw = false
+    private var surfaceIsDestroy = true
     private var mMonitorThread: MonitorThread? = null
     var onAudioListener: OnAudioListener? = null
 
     private var isRegisterEarphonesReceiver = false
     private var earPhoneReceiver: EarphonesReceiver? = null
     private lateinit var audioManager: AudioManager
+
+    private var isDefaultFull = true
+    private var isFirstDefaultFull = false
 
     init {
         mSurHolder = holder
@@ -201,6 +205,10 @@ class MonitorVer @JvmOverloads constructor(
                     return true
                 }
             })
+    }
+
+    private fun setDefaultFull(isFull: Boolean) {
+        isDefaultFull = isFull
     }
 
     /**设置充满全屏*/
@@ -268,11 +276,17 @@ class MonitorVer @JvmOverloads constructor(
         mCamera?.registerIOCallback(this)
         mCamera?.registerFrameCallback(this)
         mAvChannel = avChannel
+        //释放音频
+        releaseAudio()
         mCamera?.onAudioListener = this
         mCamera?.setPlayMode(mAvChannel, mPlayMode)
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         registerAVChannelRecordStatus(mAVChannelRecordStatus)
         Liotc.d("Monitor", "attachCamera")
+        if (!surfaceIsDestroy) {
+            Liotc.d("Monitor", "renderJob  surfaceIsDestroy=$surfaceIsDestroy ---------")
+            renderJob(holder)
+        }
     }
 
 
@@ -286,6 +300,7 @@ class MonitorVer @JvmOverloads constructor(
         mCamera = null
 
         destroyRendjob()
+        isFirstDefaultFull = false
     }
 
     private fun destroyRendjob() {
@@ -492,59 +507,6 @@ class MonitorVer @JvmOverloads constructor(
             mMonitorThread?.start()
         }
 
-
-//        if (isRunning && mRenderJob?.isActive == true) {
-//            Liotc.d("Monitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
-//            return
-//        }
-//        Liotc.d("Monitor", "renderJob running")
-//        isRunning = true
-//        mRenderJob = GlobalScope.launch(Dispatchers.IO) {
-//
-//            var videoCanvas: Canvas? = null
-//            mPaint.isDither = true
-//
-//            while (isRunning && mRenderJob?.isActive == true) {
-//                Liotc.d(
-//                    "Monitor",
-//                    "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
-//                )
-//                if(!canDraw) continue
-//                if (mLastFrame != null && mLastFrame?.isRecycled == false) {
-//                    try {
-//                        videoCanvas = mSurHolder?.lockCanvas()
-//                        videoCanvas?.rotate(
-//                            90f,
-//                            this@MonitorVer.width / 2f,
-//                            this@MonitorVer.height / 2f
-//                        )
-//
-//                        videoCanvas?.let { canvas ->
-//                            canvas.drawColor(Color.BLACK)
-//
-//                            mLastFrame?.let { bitmap ->
-//                                Liotc.d("Monitor", "drawBitmap")
-//                                canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
-//                            }
-//                        }
-//
-//                    } catch (e: Exception) {
-//                        e.printStackTrace()
-//                    } finally {
-//
-//                        videoCanvas?.let {
-//                            if(canDraw){
-//                                mSurHolder?.unlockCanvasAndPost(it)
-//                            }
-//                        }
-//                        videoCanvas = null
-//                    }
-//                }
-//                delay(33L)
-//            }
-//            Liotc.d("Monitor", "renderJob end")
-//            isRunning = false
-//        }
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
@@ -595,6 +557,7 @@ class MonitorVer @JvmOverloads constructor(
                     mStartClickPoint.set(_event.x, _event.y)
 
                 }
+
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     val dist = spacing(_event)
                     if (dist > 10f) {
@@ -602,6 +565,7 @@ class MonitorVer @JvmOverloads constructor(
                         mOrigDist = dist
                     }
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     if (mPinchedMode == ZOOM) {
                         val result = scaleVideo(_event)
@@ -615,6 +579,7 @@ class MonitorVer @JvmOverloads constructor(
                         }
                     }
                 }
+
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_POINTER_UP -> {
                     if (mCurrentScale == 1f) {
@@ -684,7 +649,7 @@ class MonitorVer @JvmOverloads constructor(
                 }
             }
         }
-        event?.let { evt->
+        event?.let { evt ->
             mGestureDetector?.onTouchEvent(evt)
         }
         return true
@@ -816,6 +781,7 @@ class MonitorVer @JvmOverloads constructor(
             "Monitor",
             "surfaceCreated [screen"
         )
+        surfaceIsDestroy = false
         canDraw = true
     }
 
@@ -869,11 +835,21 @@ class MonitorVer @JvmOverloads constructor(
             Liotc.d("Monitor", "_setFullScreen surfaceChanged[$isFullScreen]")
 
         }
+        surfaceIsDestroy = false
         canDraw = true
         renderJob(holder)
+        if(!isFirstDefaultFull && isDefaultFull){
+            _setFullScreen()
+        }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        this.mSurHolder?.let { surfaceHolder ->
+            synchronized(surfaceHolder) {
+
+            }
+        }
+        surfaceIsDestroy = true
         canDraw = false
         isRunning = false
         mMonitorThread?.stopThread()
@@ -951,9 +927,19 @@ class MonitorVer @JvmOverloads constructor(
 
                 mCurrentScale = 1f
                 Liotc.d("Monitor", "_setFullScreen receiveFrameData[$isFullScreen]")
+//                _setFullScreen()
+                if(!isFirstDefaultFull && isDefaultFull){
+                    isFirstDefaultFull = true
+                    _setFullScreen()
+                }
             }
 
             if (isFullScreen) {
+                _setFullScreen()
+            }
+
+            if(!isFirstDefaultFull && isDefaultFull){
+                isFirstDefaultFull = true
                 _setFullScreen()
             }
         }
@@ -998,6 +984,7 @@ class MonitorVer @JvmOverloads constructor(
                 }
 //                renderJob()
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_GETSTREAMCTRL_RESP -> {
                 //获取清晰度
                 data?.let {
@@ -1007,18 +994,22 @@ class MonitorVer @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.FHD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.FHD)
                             }
+
                             VideoQuality.HD.value -> {
                                 mVideoQuality = VideoQuality.HD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.HD)
                             }
+
                             VideoQuality.SMOOTH.value -> {
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
+
                             VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
+
                             else -> {
                                 mVideoQuality = VideoQuality.SD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SD)
@@ -1027,6 +1018,7 @@ class MonitorVer @JvmOverloads constructor(
                     }
                 }
             }
+
             AVIOCTRLDEFs.IOTYPE_USER_IPCAM_SETSTREAMCTRL_RESP -> {
                 //设置清晰度
                 data?.let {
@@ -1036,18 +1028,22 @@ class MonitorVer @JvmOverloads constructor(
                                 mVideoQuality = VideoQuality.FHD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.FHD)
                             }
+
                             VideoQuality.HD.value -> {
                                 mVideoQuality = VideoQuality.HD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.HD)
                             }
+
                             VideoQuality.SMOOTH.value -> {
                                 mVideoQuality = VideoQuality.SMOOTH
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SMOOTH)
                             }
+
                             VideoQuality.SSD.value -> {
                                 mVideoQuality = VideoQuality.SSD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SSD)
                             }
+
                             else -> {
                                 mVideoQuality = VideoQuality.SD
                                 mOnMonitorVideoQualityCallback?.onMonitorVideoQuality(VideoQuality.SD)

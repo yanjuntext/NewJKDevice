@@ -143,6 +143,9 @@ class Monitor @JvmOverloads constructor(
     private var earPhoneReceiver: EarphonesReceiver? = null
     private lateinit var audioManager: AudioManager
 
+    private var isDefaultFull = true
+    private var isFirstDefaultFull = false
+
     private val mHandler = object : Handler(Looper.myLooper()!!) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
@@ -150,6 +153,10 @@ class Monitor @JvmOverloads constructor(
                 changeQualityStopDecoderVideo(false)
             }
         }
+    }
+
+    private fun setDefaultFull(isFull: Boolean) {
+        isDefaultFull = isFull
     }
 
     init {
@@ -481,7 +488,10 @@ class Monitor @JvmOverloads constructor(
                                         videoCanvas?.let { canvas ->
 
                                             mLastFrame?.let { bitmap ->
-                                                Liotc.d("Monitor", "drawBitmap width=${bitmap.width} height=${bitmap.height}")
+                                                Liotc.d(
+                                                    "Monitor",
+                                                    "drawBitmap width=${bitmap.width} height=${bitmap.height}"
+                                                )
                                                 if (isThreadRunning() && !bitmap.isRecycled) {
                                                     canvas.drawColor(Color.BLACK)
                                                     canvas.drawBitmap(
@@ -899,6 +909,9 @@ class Monitor @JvmOverloads constructor(
         canDraw = true
         Liotc.d("Monitor", "surfaceDestroyed surfaceChanged")
         renderJob(holder)
+        if (!isFirstDefaultFull && isDefaultFull) {
+            _setFullScreen()
+        }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -1273,12 +1286,10 @@ open class MonitorThread(
     var isRunning: Boolean = true,
     var canDraw: Boolean = true
 ) : Thread() {
-
     fun stopThread() {
         isRunning = false
         canDraw = false
     }
 
     fun isThreadRunning() = isRunning && canDraw
-
 }

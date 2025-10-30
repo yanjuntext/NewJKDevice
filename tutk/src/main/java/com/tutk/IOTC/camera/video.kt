@@ -236,14 +236,16 @@ class RecvVideoJob(
                                     LocalRecordHelper.canRecording = true
 
 
+                                    if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_H265){
+                                        val _data = ByteArray(fram.frmSize)
+                                        System.arraycopy(fram.frmData, 0, _data, 0, fram.frmSize)
+                                        LocalRecordHelper.recordVideoFrame(
+                                            _data,
+                                            _data.size,
+                                            fram.isIFrame()
+                                        )
+                                    }
 
-                                    val _data = ByteArray(fram.frmSize)
-                                    System.arraycopy(fram.frmData, 0, _data, 0, fram.frmSize)
-                                    LocalRecordHelper.recordVideoFrame(
-                                        _data,
-                                        _data.size,
-                                        fram.isIFrame()
-                                    )
                                 }
 
                                 if (!LocalRecordHelper.recording) {
@@ -899,6 +901,13 @@ class DecodeVideoJob(
 //                                                    avFrame.isIFrame()
 //                                                )
 //                                            }
+                                            if (LocalRecordHelper.recording && avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265) {
+                                                LocalRecordHelper.recordVideoFrame(
+                                                    _data,
+                                                    avFrameSize,
+                                                    avFrame.isIFrame()
+                                                )
+                                            }
 
                                         } else if (avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_MPEG4) {
                                             if (!mpegtIsInit) {
@@ -1022,6 +1031,8 @@ internal object LocalRecordHelper {
     private var runJob: Job? = null
     private var mRecordTime = 0
 
+    private var isSetAudioEnvironment = false
+
 
     @Synchronized
     fun startRecord(
@@ -1094,7 +1105,7 @@ internal object LocalRecordHelper {
             onResultCallback?.onResult(RecordStatus.FILE_NAME_ILLEGAL)
             return
         }
-
+        isSetAudioEnvironment = false
 //            delay(200L)
         mRecordJob = GlobalScope.launch(Dispatchers.Main) {
             flow {
@@ -1110,14 +1121,17 @@ internal object LocalRecordHelper {
                     avChannel.setAudioTrackStatus(mContext?.get(), avChannel.audioPlayStatus, true)
                 }
 //                delay(500)
-                var delaycount = 0
-                while (!canRecording) {
-                    delay(5)
-                    delaycount++
-                    if (delaycount > 700) {
-                        break
+                if(codeId == AVFrame.MEDIA_CODEC_VIDEO_H265){
+                    var delaycount = 0
+                    while (!canRecording) {
+                        delay(5)
+                        delaycount++
+                        if (delaycount > 700) {
+                            break
+                        }
                     }
                 }
+
 
                 if (recording && isActive) {
                     d(TAG, "startRecord width[$width],height[$height] 1")
@@ -1197,9 +1211,10 @@ internal object LocalRecordHelper {
             TAG,
             "startRecord setAudioEnvironment[$samplerate],channel[$channel]，databits[$databits],[$recording] "
         )
-//        if (recording) {
+        if (recording && !isSetAudioEnvironment) {
+            isSetAudioEnvironment = true
             mLocalRecord.setAudioEnvironment(samplerate, channel, databits)
-//        }
+        }
     }
 
     internal fun recodeAudioFrame(data: ByteArray?, size: Int, length: Int) {
@@ -1245,6 +1260,7 @@ internal object LocalRecordHelper {
         mContext?.clear()
         mAvChannel?.clear()
         fileName = null
+        isSetAudioEnvironment = false
         d(TAG, "stopRecord")
     }
 

@@ -130,6 +130,9 @@ class RecvAudioJob(
                 var cachePcmAudiBuffer = ByteArray(1280)
                 var cachePcmAudiSize = 0
                 var lastPcmTime = 0L
+                var audioChannel = -1
+                var audioDatabits = -1
+
 //                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
                 while (isRunning && isActive && (avChannel?.isAudioPlaying() == true || LocalRecordHelper.recording)) {
 //                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
@@ -224,11 +227,9 @@ class RecvAudioJob(
                                                 AVFrame.MEDIA_CODEC_AUDIO_G711A -> mFPS = _fps / 320
                                             }
                                             d("first localRecord")
-                                            LocalRecordHelper.setAudioEnvironment(
-                                                mSamplerate,
-                                                if (mChannel == 0) 1 else 2,
-                                                if (mDatabits == 0) 8 else 16
-                                            )
+                                            audioChannel = if (mChannel == 0) 1 else 2
+                                            audioDatabits = if (mDatabits == 0) 8 else 16
+
 
                                             d("first AudioProcessHelper")
                                             AudioProcessHelper.initDecode(
@@ -270,6 +271,13 @@ class RecvAudioJob(
                                             mInitAudio = true
                                             mFirst = false
                                         }
+                                    }
+                                    if(audioDatabits != -1 && audioChannel != -1){
+                                        LocalRecordHelper.setAudioEnvironment(
+                                            mSamplerate,
+                                            if (mChannel == 0) 1 else 2,
+                                            if (mDatabits == 0) 8 else 16
+                                        )
                                     }
                                     if (isTwoWayVoiceType()) {
                                         if (mCodecId == AVFrame.MEDIA_CODEC_AUDIO_PCM) {
