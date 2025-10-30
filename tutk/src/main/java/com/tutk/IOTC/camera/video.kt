@@ -236,15 +236,15 @@ class RecvVideoJob(
                                     LocalRecordHelper.canRecording = true
 
 
-                                    if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_H265){
-                                        val _data = ByteArray(fram.frmSize)
-                                        System.arraycopy(fram.frmData, 0, _data, 0, fram.frmSize)
-                                        LocalRecordHelper.recordVideoFrame(
-                                            _data,
-                                            _data.size,
-                                            fram.isIFrame()
-                                        )
-                                    }
+//                                    if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_H265){
+//                                        val _data = ByteArray(fram.frmSize)
+//                                        System.arraycopy(fram.frmData, 0, _data, 0, fram.frmSize)
+//                                        LocalRecordHelper.recordVideoFrame(
+//                                            _data,
+//                                            _data.size,
+//                                            fram.isIFrame()
+//                                        )
+//                                    }
 
                                 }
 
@@ -901,7 +901,7 @@ class DecodeVideoJob(
 //                                                    avFrame.isIFrame()
 //                                                )
 //                                            }
-                                            if (LocalRecordHelper.recording && avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265) {
+                                            if (LocalRecordHelper.recording) {
                                                 LocalRecordHelper.recordVideoFrame(
                                                     _data,
                                                     avFrameSize,
@@ -1212,6 +1212,7 @@ internal object LocalRecordHelper {
             "startRecord setAudioEnvironment[$samplerate],channel[$channel]，databits[$databits],[$recording] "
         )
         if (recording && !isSetAudioEnvironment) {
+//        if (!isSetAudioEnvironment) {
             isSetAudioEnvironment = true
             mLocalRecord.setAudioEnvironment(samplerate, channel, databits)
         }
