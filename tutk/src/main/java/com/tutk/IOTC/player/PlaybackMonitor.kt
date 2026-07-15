@@ -5,10 +5,19 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.Rect
 import android.media.AudioManager
 import android.net.Uri
-import android.os.*
+import android.os.Build
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.provider.MediaStore
 import android.util.AttributeSet
 import android.view.GestureDetector
@@ -16,9 +25,15 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.lifecycle.LifecycleObserver
-import com.tutk.IOTC.*
+import com.tutk.IOTC.AVAPIs
+import com.tutk.IOTC.AVIOCTRLDEFs
 import com.tutk.IOTC.Camera
-import com.tutk.IOTC.listener.*
+import com.tutk.IOTC.Liotc
+import com.tutk.IOTC.listener.IAVChannelRecordStatus
+import com.tutk.IOTC.listener.OnFrameCallback
+import com.tutk.IOTC.listener.OnIOCallback
+import com.tutk.IOTC.listener.OnResultCallback
+import com.tutk.IOTC.listener.OnSessionChannelCallback
 import com.tutk.IOTC.status.PlayMode
 import com.tutk.IOTC.status.PlaybackStatus
 import com.tutk.IOTC.status.RecordStatus
@@ -29,10 +44,18 @@ import com.tutk.io.parsePlayBack
 import com.tutk.io.playback
 import com.tutk.io.playbackSeekToPercent
 import com.tutk.utils.PermissionUtil
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import java.io.*
+import kotlinx.coroutines.launch
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import kotlin.math.sqrt
 
 /**
@@ -152,12 +175,19 @@ class PlaybackMonitor @JvmOverloads constructor(
     /**是否是新的录像方式*/
     var meoofRecord: Boolean = false
 
+    /**是否是新的进度方式*/
+    var isNewTimeDuration: Boolean = false
+
     private var isSeekTo = false
     private var seekToTime = -1
 
     private var isRegisterEarphonesReceiver = false
     private var earPhoneReceiver: EarphonesReceiver? = null
     private lateinit var audioManager: AudioManager
+
+    var isDefaultFullScreen = false
+
+    private var isFirstFullScreen = false
 
     init {
         mSurHolder = holder
@@ -383,7 +413,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                 Liotc.d(TAG, "restartPlayback changePlayStatus 222")
                 mCamera.playback(type = PlaybackStatus.PAUSE, time = it)
             }
-        }else  if ((mAvChannel < 0 && mPlaybackStatus == null) || (mPlaybackStatus == PlaybackStatus.ERROR)) {
+        } else if ((mAvChannel < 0 && mPlaybackStatus == null) || (mPlaybackStatus == PlaybackStatus.ERROR)) {
             mRecordEvent?.let {
                 Liotc.d(TAG, "restartPlayback changePlayStatus 333")
                 mCamera.playback(
@@ -570,9 +600,11 @@ class PlaybackMonitor @JvmOverloads constructor(
      */
     private fun startShow() {
         renderJob()
-        mCamera?.setPlayMode(mAvChannel, mPlayMode)
+        Liotc.d("PlaybackMonitor", "playback audio playMode=${mPlayMode}")
+
         mCamera?.setVoiceType(mAvChannel, mVoiceType)
         mCamera?.start(mAvChannel, mCamera?.viewAccount ?: "admin", mCamera?.psw ?: "")
+        mCamera?.setPlayMode(mAvChannel, mPlayMode)
         mCamera.getAudioCodec(mAvChannel)
         mCamera?.startShow(context, mAvChannel, withYuv = withYuv)
         setAudioTrackStatus(mAudioTrackStatus)
@@ -805,6 +837,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                     mStartClickPoint.set(_event.x, _event.y)
 
                 }
+
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     val dist = spacing(_event)
                     if (dist > 10f) {
@@ -812,6 +845,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         mOrigDist = dist
                     }
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     if (mPinchedMode == ZOOM) {
                         val result = scaleVideo(_event)
@@ -825,6 +859,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         }
                     }
                 }
+
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_POINTER_UP -> {
                     if (mCurrentScale == 1f) {
@@ -1101,6 +1136,12 @@ class PlaybackMonitor @JvmOverloads constructor(
 //            )
         }
 //        renderJob()
+
+        if (isDefaultFullScreen) {
+            _setFullScreen()
+        }
+        isFirstFullScreen = false
+
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -1180,6 +1221,11 @@ class PlaybackMonitor @JvmOverloads constructor(
             if (isFullScreen) {
                 _setFullScreen()
             }
+
+            if (!isFirstFullScreen && isDefaultFullScreen) {
+                isFirstFullScreen = true
+                _setFullScreen()
+            }
         }
     }
 
@@ -1199,7 +1245,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         "PlaybackMonitor",
                         "receiveFrameDataTime --------------time=${time}   startTime=${startTime}"
                     )
-                    firstStatusBarTime = startTime
+                    firstStatusBarTime = if (time == 0L) time else startTime
                     mCurrentDeviceStatusBar = 0
                 }
             }
@@ -1208,11 +1254,17 @@ class PlaybackMonitor @JvmOverloads constructor(
                 "PlaybackMonitor",
                 "receiveFrameDataTime time=$time   firstStatusBarTime=$firstStatusBarTime"
             )
+
+
+
             if (firstStatusBarTime == -1L) {
                 firstStatusBarTime = time
                 mCurrentDeviceStatusBar = 0
             } else {
                 mCurrentDeviceStatusBar = (time - firstStatusBarTime).toInt()
+            }
+            if (isNewTimeDuration) {
+                mCurrentDeviceStatusBar = time.toInt()
             }
             mVideoPlayTime = mCurrentDeviceStatusBar
             if (meoofRecord) {
@@ -1285,7 +1337,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                             startShow()
                             mPlaybackStatus = PlaybackStatus.PLAYING
                             startPlayTime()
-                            if(isSeekTo && mSeekTime > 0){
+                            if (isSeekTo && mSeekTime > 0) {
                                 seekTo(mSeekTime)
                             }
                         } else {
@@ -1296,6 +1348,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         isSeekTo = false
                         mSeekTime = 0
                     }
+
                     PlaybackStatus.PAUSE -> {
                         if (mPlaybackStatus == PlaybackStatus.PAUSE) {
                             mPlaybackStatus = PlaybackStatus.PLAYING
@@ -1315,6 +1368,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                             mVideoPlayTime
                         )
                     }
+
                     PlaybackStatus.STOP -> {
                         Liotc.d(TAG, "restartPlayback receiveIOCtrlData stop")
                         Liotc.d("PlaybackMonitor", "receiveFrameDataTime resp stop play")
@@ -1329,6 +1383,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                         )
                         mPlaybackStatus = null
                     }
+
                     PlaybackStatus.END -> {
                         Liotc.d(TAG, "restartPlayback receiveIOCtrlData end stop")
                         mPlaybackStatus = PlaybackStatus.END
@@ -1340,7 +1395,9 @@ class PlaybackMonitor @JvmOverloads constructor(
                         stopPlayTime()
                         stop()
                     }
+
                     PlaybackStatus.SEEKTIME -> {
+
                         mVideoPlayTime = mSeekTime
                     }
 //                    PlaybackStatus.ERROR->{

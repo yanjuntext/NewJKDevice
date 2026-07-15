@@ -26,11 +26,11 @@ class AVFrameQueue {
             lock.unlock()
             null
         } else {
-            if(listData.isEmpty()){
+            if (listData.isEmpty()) {
                 mSize = 0
                 lock.unlock()
                 null
-            }else{
+            } else {
                 kotlin.runCatching {
                     val avFrame = listData.removeAt(0)
                     mSize--
@@ -76,5 +76,28 @@ class AVFrameQueue {
 
         lock.unlock()
         return value
+    }
+
+    fun getFirstFrame(): AVFrame? {
+        lock.lock()
+        return if (mSize == 0) {
+            lock.unlock()
+            null
+        } else {
+            if (listData.isEmpty()) {
+                mSize = 0
+                lock.unlock()
+                null
+            } else {
+                kotlin.runCatching {
+                    val avFrame = listData.get(0)
+                    return avFrame
+                }.onFailure {
+                    lock.unlock()
+                }
+                return null
+            }
+
+        }
     }
 }

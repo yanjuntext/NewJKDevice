@@ -42,7 +42,7 @@ class AVChannel(
     var mViewPwd: String,
     var uid: String?,
     var iavChannelStatus: IAVChannelListener?,
-    var camera:Camera?
+    var camera: Camera?
 ) {
 
     var mAvIndex = -1
@@ -56,13 +56,15 @@ class AVChannel(
     var mAudioCodec: Int = 0
     var IOCtrlQueue: IOCtrlQueue? = IOCtrlQueue(IOCtrlQueueType.COMMON_IO_CMD_QUENE)
     var IOCtrlFastQueue: IOCtrlQueue? = IOCtrlQueue(IOCtrlQueueType.FAST_MOVE_CMD_QUENE)
-    var IOCtrlJsonQueue:IOCtrlJsonQueue? = IOCtrlJsonQueue()
+    var IOCtrlJsonQueue: IOCtrlJsonQueue? = IOCtrlJsonQueue()
     var VideoFrameQueue: AVFrameQueue? = AVFrameQueue()
     var AudioFrameQueue: AVFrameQueue? = AVFrameQueue()
 
     var lastFrame: Bitmap? = null
 
     var lastThumFrame: Bitmap? = null
+
+
 
     var videoFPS = 0
     var videoBPS = 0
@@ -105,7 +107,10 @@ class AVChannel(
 
     private var mAcousticEchoCanceler: AcousticEchoCanceler? = null
 
-    var audioRecordVolume:Double = 0.0
+    var audioRecordVolume: Double = 0.0
+
+    //最新的回放视频中音频的时间戳
+    var lastAudioPlaybackTimeStamp = 0
 
     internal fun setSid(sid: Int) {
         SID = sid
@@ -117,11 +122,11 @@ class AVChannel(
         mRecvVideoJob?.setSid(sid)
     }
 
-    internal fun refreshSid(){
+    internal fun refreshSid() {
 //        d("StartJob","StartJob refreshSid=[${camera?.getSid()}]")
-        if(camera != null){
+        if (camera != null) {
 
-           setSid(camera?.getSid()?:SID)
+            setSid(camera?.getSid() ?: SID)
         }
     }
 
@@ -129,7 +134,7 @@ class AVChannel(
     internal fun start(delayTime: Long = 500) {
 
         if (mStartJob == null) {
-            mStartJob = StartJob(this, iavChannelStatus = iavChannelStatus,delayTime = delayTime)
+            mStartJob = StartJob(this, iavChannelStatus = iavChannelStatus, delayTime = delayTime)
         }
 
         if (mRecvIoJob == null) {
@@ -200,7 +205,7 @@ class AVChannel(
         playMode = PlayMode.PLAY_LIVE
     }
 
-    internal fun changeQualityStopDecoderVideo(changeing:Boolean = false){
+    internal fun changeQualityStopDecoderVideo(changeing: Boolean = false) {
         Liotc.d("AvChannel", "changeQualityStopDecoderVideo:$changeing ")
         mRecvVideoJob?.setChangeVideoQuality(changeing)
 //        mDecVideoJob?.setChangeVideoQuality(changeing)
@@ -256,22 +261,22 @@ class AVChannel(
 
     //播放双向语音:播放音频
     internal fun putPlayData(data: ByteArray?, size: Int, time: Long) {
-        d("RecvAudioJob","putPlayData  1")
+        d("RecvAudioJob", "putPlayData  1")
         if (mAudioFrame == null) {
             mAudioFrame = AudioFrame()
         }
-        d("RecvAudioJob","putPlayData  2")
+        d("RecvAudioJob", "putPlayData  2")
         if (data == null || data.isEmpty() || data.size < size) {
             return
         }
-        d("RecvAudioJob","putPlayData  3")
+        d("RecvAudioJob", "putPlayData  3")
         mAudioFrame?.setAudioData(data, size)
         mAudioFrame?.timeStamp = time
         mAudioFrame?.let {
-            d("RecvAudioJob","putPlayData  4")
+            d("RecvAudioJob", "putPlayData  4")
             mAudioPlayer?.putPlayData(it)
         }
-        d("RecvAudioJob","putPlayData  5")
+        d("RecvAudioJob", "putPlayData  5")
 
     }
 
@@ -286,7 +291,7 @@ class AVChannel(
         status: Boolean,
         recording: Boolean = false
     ) {
-        d("RecvAudioJob", "unInitAudioTrack setAudioTrackStatus=$status")
+        d("RecvAudioJob", "playback audio unInitAudioTrack setAudioTrackStatus=$status playMode=${playMode}")
         audioPlayStatus = status
         if (mRecvAudioJob == null) {
             mRecvAudioJob = RecvAudioJob(this, iavChannelStatus = iavChannelStatus)
@@ -295,11 +300,11 @@ class AVChannel(
         if (status || recording) {
             mRecvAudioJob?.start(context, playMode.value)
         }
-        if(!status && !recording){
-            if(mVoiceType == VoiceType.TWO_WAY_VOICE ){
+        if (!status && !recording) {
+            if (mVoiceType == VoiceType.TWO_WAY_VOICE) {
                 //双向的时候
 
-            }else{
+            } else {
                 mRecvAudioJob?.isRunning = false
             }
 
@@ -331,7 +336,7 @@ class AVChannel(
                 throw RuntimeException("plz open android.permission.RECORD_AUDIO permission")
             }
             mSendAudioJob?.start(context)
-        }else{
+        } else {
             mSendAudioJob?.stop()
         }
     }
@@ -478,7 +483,7 @@ interface IAVChannelListener {
     fun onAVChannelReceiverFrameData(channel: Int, bitmap: Bitmap?, time: Long)
 
     /**视频 时间戳回调*/
-    fun onAVChannelReceiverFrameDataTime(time:Long)
+    fun onAVChannelReceiverFrameDataTime(time: Long)
 
     fun onAVChannelReceiverFrameInfo(
         channel: Int,
@@ -501,14 +506,13 @@ interface IAVChannelListener {
     fun onAVChannelSendFileStatus(status: SendFileStatus, total: Int, sendTotal: Int, progress: Int)
 
 
-
     fun onAVChanneldownloadFileStatus(
         status: DownLoadFileStatus,
         total: Int,
         downloadTotal: Int,
         progress: Int,
-        dstFilePath:String?,
-        dstUri:Uri?
+        dstFilePath: String?,
+        dstUri: Uri?
     )
 
     /**音频监听状态*/
@@ -516,8 +520,9 @@ interface IAVChannelListener {
 
     /**音频发送状态*/
     fun onTalkStatus(status: Boolean)
+
     /**录音音量大小*/
-    fun onAudioRecordVolume(valume:Double)
+    fun onAudioRecordVolume(valume: Double)
 
 }
 

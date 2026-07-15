@@ -221,7 +221,9 @@ class MonitorVer @JvmOverloads constructor(
             if (cHeight >= nScreenHeight) {
                 val ratio = cHeight * 1.0f / nScreenHeight
                 mCurrentScale = ratio
+                Liotc.d("Monitor", "_setFullScreen 1 mCurrentScale=${mCurrentScale}")
                 val start = height / 2 - cHeight / 2
+
                 mRectCanvas.set(mRectMonitor.left, start, mRectMonitor.right, start + cHeight)
             } else {
                 val cWidth = nScreenHeight * widthRation / heightRation
@@ -838,9 +840,14 @@ class MonitorVer @JvmOverloads constructor(
         surfaceIsDestroy = false
         canDraw = true
         renderJob(holder)
-        if(!isFirstDefaultFull && isDefaultFull){
+//        if(!isFirstDefaultFull && isDefaultFull){
+//            _setFullScreen()
+//        }
+        if(isDefaultFull){
+            Liotc.d("Monitor", "surfaceChanged _setFullScreen 1 mCurrentScale=${mCurrentScale}")
             _setFullScreen()
         }
+        isFirstDefaultFull = false
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -929,16 +936,19 @@ class MonitorVer @JvmOverloads constructor(
                 Liotc.d("Monitor", "_setFullScreen receiveFrameData[$isFullScreen]")
 //                _setFullScreen()
                 if(!isFirstDefaultFull && isDefaultFull){
+                    Liotc.d("Monitor", "receiveFrameData _setFullScreen 1 mCurrentScale=${mCurrentScale}")
                     isFirstDefaultFull = true
                     _setFullScreen()
                 }
             }
 
             if (isFullScreen) {
+                Liotc.d("Monitor", "2222 receiveFrameData _setFullScreen 1 mCurrentScale=${mCurrentScale}")
                 _setFullScreen()
             }
 
             if(!isFirstDefaultFull && isDefaultFull){
+                Liotc.d("Monitor", "3333 receiveFrameData _setFullScreen 1 mCurrentScale=${mCurrentScale}")
                 isFirstDefaultFull = true
                 _setFullScreen()
             }
@@ -1058,6 +1068,7 @@ class MonitorVer @JvmOverloads constructor(
 
     //拍照
     fun takePhoto() = rotationBitmap(mLastFrame)
+
 
     //拍照并保存到文件
     fun takePhoto(path: String, name: String, urlPath: String? = null): File? {

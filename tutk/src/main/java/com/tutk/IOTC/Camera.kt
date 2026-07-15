@@ -651,14 +651,23 @@ open class Camera(
     }
 
     fun disconnect() {
-        Liotc.d("disconnect", "startConnectJob disconnect size[${mAVChannels.size}] stop--------- $this")
+        Liotc.d(
+            "disconnect",
+            "startConnectJob disconnect size[${mAVChannels.size}] stop--------- $this"
+        )
         handler.removeMessages(OPT_RECONNECT)
         stopShow(0)
         val iterator = mAVChannels.iterator()
-        Liotc.d("disconnect", "startConnectJob disconnect size[${mAVChannels.size}] stop--------- 1111")
+        Liotc.d(
+            "disconnect",
+            "startConnectJob disconnect size[${mAVChannels.size}] stop--------- 1111"
+        )
         while (iterator.hasNext()) {
             val next = iterator.next()
-            d("RecvAudioJob", "startConnectJob unInitAudioTrack releaseAudio stop disconnect  stop---------")
+            d(
+                "RecvAudioJob",
+                "startConnectJob unInitAudioTrack releaseAudio stop disconnect  stop---------"
+            )
             next.stop()
             if (next.mAvIndex >= 0) {
                 AVAPIs.avClientStop(next.mAvIndex)
@@ -726,8 +735,14 @@ open class Camera(
 
     /**广播设备在线状态*/
     private fun broadCameraSessionStatus(status: Int) {
+
+        d(
+            "startConnectJob",
+            "2222===ThreadConnectDev connect ok msid broadCameraSessionStatus size=${mOnSessionChannelCallbacks.size}"
+        )
+
         mOnSessionChannelCallbacks.toList().forEach {
-            it.receiveSessionInfo(this,status)
+            it.receiveSessionInfo(this, status)
         }
 //        val iterator = mOnSessionChannelCallbacks.iterator()
 //        while (iterator.hasNext()) {
@@ -738,7 +753,7 @@ open class Camera(
     /**广播设备在线状态  channel*/
     private fun broadCameraChannelInfo(channel: Int, status: Int) {
         mOnSessionChannelCallbacks.toList().forEach {
-            it.receiveChannelInfo(this,channel,status)
+            it.receiveChannelInfo(this, channel, status)
         }
 
 //        val iterator = mOnSessionChannelCallbacks.iterator()
@@ -977,6 +992,10 @@ open class Camera(
                             when {
                                 mSID >= 0 -> {
                                     if (isActive) {
+                                        d(
+                                            "startConnectJob",
+                                            "2222===ThreadConnectDev connect ok msid[$mSID],devid[$uid],[${isActive}]"
+                                        )
                                         emit(CONNECTION_STATE_CONNECTED)
                                     }
                                     d(
@@ -1032,10 +1051,16 @@ open class Camera(
                     first = false
 
                     if (mSID >= 0 && mSID != IOTC_CONNECT_ING) {
-                        d("startConnectJob", "start check dev status 111  sid=$mSID random=[$random]")
+                        d(
+                            "startConnectJob",
+                            "start check dev status 111  sid=$mSID random=[$random]"
+                        )
                         delay(30000L)
                         ensureActive()
-                        d("startConnectJob", "start check dev status 2222  sid=$mSID  random=[$random]")
+                        d(
+                            "startConnectJob",
+                            "start check dev status 2222  sid=$mSID  random=[$random]"
+                        )
                         if (!connecting || !isActive) {
                             d(
                                 "startConnectJob",
@@ -1201,6 +1226,7 @@ open class Camera(
         while (iterator.hasNext()) {
             val avChannel = iterator.next()
             if (avChannel.mChannel == channel) {
+                Liotc.d("PlaybackMonitor", "setPlayMode playback audio playMode=${playMode}")
                 avChannel.playMode = playMode
                 break
             }
@@ -1238,7 +1264,7 @@ open class Camera(
 
     @Synchronized
     internal fun stopShow(channel: Int) {
-        d(TAG,"stopShowstopShowstopShow channel=$channel")
+        d(TAG, "stopShowstopShowstopShow channel=$channel")
         val iterator = mAVChannels.iterator()
         while (iterator.hasNext()) {
             val avChannel = iterator.next()

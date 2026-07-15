@@ -82,8 +82,9 @@ class RecvVideoJob(
     private fun getFrameBitmapInfo(bmp: Bitmap?, deviceTime: Long) =
         RecvVideoInfo(-2, bitmap = bmp, deviceTime = deviceTime)
 
-    private fun getFrameTimeInfo( deviceTime: Long) =
+    private fun getFrameTimeInfo(deviceTime: Long) =
         RecvVideoInfo(-3, deviceTime = deviceTime)
+
     private fun requestIFrame() {
         if (isRunning && isActive() && getAvIndex() >= 0) {
             d(TAG, "发送511命令")
@@ -227,7 +228,7 @@ class RecvVideoJob(
                                     isFirstRecording = true
                                     requestIFrame()
                                 }
-                                if(nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG && !isFirstRecording && LocalRecordHelper.recording){
+                                if (nCodecId == AVFrame.MEDIA_CODEC_VIDEO_MJPEG && !isFirstRecording && LocalRecordHelper.recording) {
                                     isFirstIFrame = true
                                 }
 
@@ -264,11 +265,12 @@ class RecvVideoJob(
                                         }
                                         if (fram.isIFrame() || pFrmNo[0].toLong() == nPrevFrmNo + 1) {
                                             nPrevFrmNo = pFrmNo[0].toLong()
-
+                                            d(TAG, "codeId=$nCodecId ----- assLast")
                                             avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
                                             avChannel?.VideoFrameQueue?.addLast(fram)
                                         }
                                     }
+
                                     AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> {
                                         if (fram.isIFrame() && isFirstIFrame) {
                                             avChannel?.IOCtrlQueue?.Enqueue(
@@ -287,6 +289,7 @@ class RecvVideoJob(
                                             avChannel?.VideoFrameQueue?.addLast(fram)
                                         }
                                     }
+
                                     AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
                                         if (LocalRecordHelper.recording) {
                                             LocalRecordHelper.recordVideoFrame(
@@ -302,7 +305,7 @@ class RecvVideoJob(
                                                     0,
                                                     nReadSize
                                                 )
-                                            d(TAG,"MEDIA_CODEC_VIDEO_MJPEG bmp----")
+                                            d(TAG, "MEDIA_CODEC_VIDEO_MJPEG bmp----")
                                             emit(getFrameBitmapInfo(bmp, fram.deviceCurrentTime))
                                             avChannel?.lastFrame = bmp
                                         } catch (e: Exception) {
@@ -312,10 +315,12 @@ class RecvVideoJob(
                                     }
                                 }
                             }
+
                             nReadSize == AVAPIs.AV_ER_SESSION_CLOSE_BY_REMOTE
                                     || nReadSize == AVAPIs.AV_ER_REMOTE_TIMEOUT_DISCONNECT -> {
                                 d(TAG, "nReadSize=[$nReadSize]")
                             }
+
                             nReadSize == AVAPIs.AV_ER_DATA_NOREADY -> {
                                 delay(32)
                                 d(TAG, "-------------- mNoFramIndex=${mNoFramIndex}")
@@ -327,7 +332,7 @@ class RecvVideoJob(
                                         if (isRunning && isActive && getAvIndex() >= 0 && mSID >= 0) {
                                             d(TAG, "*** mNoFramIndex=${mNoFramIndex}")
                                             //重新请求IFrame
-                                            if(nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG){
+                                            if (nCodecId != AVFrame.MEDIA_CODEC_VIDEO_MJPEG) {
                                                 avChannel?.IOCtrlQueue?.Enqueue(
                                                     getAvIndex(), 511,
                                                     Packet.intToByteArray_Little(0)
@@ -341,6 +346,7 @@ class RecvVideoJob(
                                     d(TAG, "###--- mNoFramIndex=${mNoFramIndex}")
                                 }
                             }
+
                             nReadSize == AVAPIs.AV_ER_MEM_INSUFF
                                     || nReadSize == AVAPIs.AV_ER_LOSED_THIS_FRAME -> {
                                 mNoFramIndex = 0
@@ -348,6 +354,7 @@ class RecvVideoJob(
                                 nIncompleteFrmCount++
                                 nFlow_total_frame_count++
                             }
+
                             nReadSize == AVAPIs.AV_ER_INCOMPLETE_FRAME -> {
                                 d(TAG, "AVAPIs.AV_ER_INCOMPLETE_FRAME==========")
                                 mNoFramIndex = 0
@@ -366,7 +373,7 @@ class RecvVideoJob(
                                         Packet.byteArrayToShort_Little(pFrmInfoBuf, 0).toInt()
 
                                     when (nCodecId) {
-                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG->{
+                                        AVFrame.MEDIA_CODEC_VIDEO_MJPEG -> {
 //                                            if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
                                             nIncompleteFrmCount++
 //                                            } else {
@@ -395,9 +402,11 @@ class RecvVideoJob(
 //                                            }
 
                                         }
+
                                         AVFrame.MEDIA_CODEC_VIDEO_MPEG4 -> {
                                             nIncompleteFrmCount++
                                         }
+
                                         AVFrame.MEDIA_CODEC_VIDEO_H264,
                                         AVFrame.MEDIA_CODEC_VIDEO_H265 -> {
                                             if (outFrmInfoBufSize[0] == 0 || outFrmSize[0] != outBufSize[0] || pFrmInfoBuf[2].toInt() == 0) {
@@ -456,6 +465,7 @@ class RecvVideoJob(
                                 it.dispFrame
                             )
                         }
+
                         -1 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameInfo(
                                 avChannel?.mChannel ?: -1,
@@ -466,6 +476,7 @@ class RecvVideoJob(
                                 it.incompleteFrameCount
                             )
                         }
+
                         -2 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameData(
                                 avChannel?.mChannel ?: -1, it.bitmap,
@@ -474,7 +485,8 @@ class RecvVideoJob(
                                 avChannel?.mChannel ?: -1, it.bitmap, it.deviceTime
                             )
                         }
-                        -3->{
+
+                        -3 -> {
                             iavChannelStatus?.onAVChannelReceiverFrameDataTime(it.deviceTime)
                         }
                     }
@@ -566,7 +578,7 @@ class DecodeVideoJob(
         var lastUpdateDispFrmPreSec = 0L
         var lastFrameTimeStamp = 0L
         var delayTime = 0L
-        val bufOut = ByteArray(MAX_FRAMEBUF)
+        var bufOut: ByteArray? = ByteArray(MAX_FRAMEBUF)
 
         var bmp: Bitmap? = null
 
@@ -594,6 +606,7 @@ class DecodeVideoJob(
             flow {
                 var lastIFrameSize = -1
                 avChannel?.refreshSid()
+                avChannel?.lastAudioPlaybackTimeStamp = -1
                 while (isRunning && isActive) {
                     avChannel?.refreshSid()
                     if (isChangeVideoQuality) {
@@ -643,6 +656,18 @@ class DecodeVideoJob(
                         d("i frame[${mAvFrame?.isIFrame()}] w=${mAvFrame?.videoWidth} h=${mAvFrame?.videoHeight} size=${avChannel.VideoFrameQueue?.mSize}")
 
                         val count = avChannel.VideoFrameQueue?.mSize ?: 0
+//                        if (avChannel.playMode == PlayMode.PLAY_BACK) {
+//                            d("playback audio video lastFrameTimeStamp=${lastFrameTimeStamp} first=${avChannel.VideoFrameQueue?.getFirstFrame()?.timestamp}")
+//                            if (lastFrameTimeStamp < (avChannel.VideoFrameQueue?.getFirstFrame()?.timestamp
+//                                    ?: 0)
+//                            ) {
+//                                delayTime = 0
+//                                lastFrameTimeStamp = 0
+//                                firstTimeStampFromLocal = 0
+//                                firstTimeStampFromDevice = 0
+//                            }
+//                        }
+//                        d("playback audio video count=${count} delayTime=${delayTime}")
 
                         if (count > 0 && delayTime > 2000) {
                             avChannel.VideoFrameQueue?.isDroping = true
@@ -652,11 +677,12 @@ class DecodeVideoJob(
                             if (avFrame == null) {
                                 continue
                             }
-
+                            avChannel?.lastAudioPlaybackTimeStamp = avFrame.timestamp
                             var skipTime = avFrame.timestamp - lastFrameTimeStamp
                             lastFrameTimeStamp = avFrame.timestamp.toLong()
 
                             while (isActive) {
+//                                d("playback audio video 22222 count=${count} delayTime=${delayTime}")
                                 ensureActive()
                                 if (avChannel.VideoFrameQueue?.isFirstIFrame() != true) {
                                     avFrame = avChannel.VideoFrameQueue?.removeHead()
@@ -682,17 +708,66 @@ class DecodeVideoJob(
 //                            if(videoDecodeResult == -4 && mAvFrame?.isIFrame() != true){
 //                                continue
 //                            }
-                            d("camera video dataavFrameSize[$avFrameSize],mAvFramep[${mAvFrame == null}]")
+//                            if (avChannel.playMode == PlayMode.PLAY_BACK) {
+//                                if (avChannel.lastAudioPlaybackTimeStamp - (mAvFrame?.timestamp
+//                                        ?: 0) >= 200
+//                                    && avChannel.lastAudioPlaybackTimeStamp >= 0
+//                                    && (mAvFrame?.timestamp ?: 0) > 0
+//                                ) {
+//                                    d("playback audio video droop 000000 ----------  audioTime=${avChannel.lastAudioPlaybackTimeStamp} videoTime=${mAvFrame?.timestamp}")
+//                                    // 如果视频、音频时间戳大于500，则丢弃当前视频帧
+//                                    if (mAvFrame?.isIFrame() != true) {
+//                                        d("playback audio video droop ----------")
+//                                        var isFlag = false
+//                                        while ((avChannel.VideoFrameQueue?.mSize ?: 0) > 0) {
+//                                            ensureActive()
+//                                            mAvFrame = avChannel.VideoFrameQueue?.removeHead()
+//                                            if (avChannel.lastAudioPlaybackTimeStamp - (mAvFrame?.timestamp
+//                                                    ?: 0) >= 200
+//                                                && avChannel.lastAudioPlaybackTimeStamp >= 0
+//                                                && (mAvFrame?.timestamp ?: 0) > 0
+//                                            ) {
+//                                                if (mAvFrame?.isIFrame() == true) {
+//                                                    isFlag = true
+//                                                    avFrameSize = mAvFrame?.frmSize ?: 0
+//                                                    break
+//                                                } else {
+//                                                    lastFrameTimeStamp = mAvFrame!!.timestamp.toLong()
+//                                                    continue
+//                                                }
+//                                            } else {
+//                                                isFlag = true
+//                                                avFrameSize = mAvFrame?.frmSize ?: 0
+//                                                break
+//                                            }
+//                                        }
+//
+//                                        if(!isFlag){
+//                                            continue
+//                                        }
+//                                    }
+//                                }
+//                            }
 
+
+                            d("camera video dataavFrameSize[$avFrameSize],mAvFramep[${mAvFrame == null}]")
+//                            d("playback audio video 3333 avFrameSize=${avFrameSize}")
                             if (avFrameSize > 0 && isActive) {
                                 out_size[0] = 0
                                 out_width[0] = 0
                                 out_height[0] = 0
 
                                 mAvFrame?.let { avFrame ->
+                                    avChannel?.lastAudioPlaybackTimeStamp = avFrame.timestamp
                                     val frmData = avFrame.frmData ?: return@let
                                     val total = frmData.size
                                     d("frmData [${total}],[$avFrameSize]")
+
+//                                    if(avChannel.playMode == PlayMode.PLAY_BACK){
+
+                                    d("playback audio video time=${avFrame.timestamp} --- mode=${avChannel.playMode}")
+//                                    }
+
                                     if (total >= avFrameSize) {
                                         val data = ByteArray(avFrameSize)
                                         System.arraycopy(frmData, 0, data, 0, avFrameSize)
@@ -702,9 +777,12 @@ class DecodeVideoJob(
                                         d("nCodeId [${avFrame.codec_id}]")
 
                                         if (avFrame.isIFrame()) {
+                                            d("ddddd 1111")
                                             if (lastIFrameSize < 0) {
+                                                d("ddddd 2222")
                                                 lastIFrameSize = avFrame.frmSize
                                             } else if (lastIFrameSize * 2 < avFrame.frmSize || avFrame.frmSize * 2 < lastIFrameSize) {
+                                                d("ddddd 3333  decoderIsInit=${decoderIsInit}")
                                                 //切换的视频分辨率
                                                 if (decoderIsInit) {
                                                     try {
@@ -730,7 +808,7 @@ class DecodeVideoJob(
                                                     VideoDecoder.COLOR_FORMAT_BGR32,
                                                     if (avFrame.codec_id.toInt() == AVFrame.MEDIA_CODEC_VIDEO_H265) 1 else 0,
                                                     mContext?.get(),
-                                                    avChannel.camera?.getCheckYCount()?:100
+                                                    avChannel.camera?.getCheckYCount() ?: 100
                                                 )
                                                 mVideoBuffer =
                                                     ByteBuffer.allocateDirect(MAX_FRAMEBUF)
@@ -748,6 +826,7 @@ class DecodeVideoJob(
                                             mVideoBuffer?.flip()
                                             mVideoOutBuffer?.clear()
                                             videoDecodeResult = -1
+
                                             videoDecodeResult = if (withYuv) {
                                                 d("yuv decode 111")
                                                 mVideoDecoder?.decodeWithYUV(
@@ -758,13 +837,16 @@ class DecodeVideoJob(
                                                     mYuvData
                                                 ) ?: -1
                                             } else {
+//                                                d("playback audio video decode")
                                                 mVideoDecoder?.decode(
                                                     mVideoBuffer,
                                                     avFrameSize,
-                                                    20,
+                                                    if (avChannel.playMode == PlayMode.PLAY_BACK) 10 else 20,
+//                                                    20,
                                                     mVideoOutBuffer
                                                 ) ?: -1
                                             }
+//                                            d("playback audio video decode videoDecodeResult=${videoDecodeResult}")
 //                                            if(videoDecodeResult == -4){
 //                                                d("C_TAG videoDecodeResult == -4")
 //                                                avChannel.changeQualityStopDecoderVideo(true)
@@ -776,7 +858,7 @@ class DecodeVideoJob(
                                             out_size[0] = out_width[0] * out_height[0] * 2
 
                                             d("out_size[${out_size[0]}],out_width[${out_width[0]}],out_height[${out_height[0]}]videoDecodeResult=${videoDecodeResult}")
-
+//                                            d("playback audio video decode out_width=${out_width[0]},out_height[${out_height[0]}]")
                                             if (out_size[0] > 0 && out_height[0] > 0 && out_width[0] > 0) {
                                                 videoWidth = out_width[0]
                                                 videoHeight = out_height[0]
@@ -825,8 +907,11 @@ class DecodeVideoJob(
                                                         bmp?.copyPixelsFromBuffer(wrap)
                                                         d("yuv decode 333")
                                                     } else {
-                                                        if(videoWidth * videoHeight * 4 <= MAX_FRAMEBUF){
-                                                            mVideoOutBuffer?.let { buffer->
+//                                                        d("playback audio video decode copyPixelsFromBuffer")
+                                                        if (videoWidth * videoHeight * 4 <= MAX_FRAMEBUF) {
+//                                                            d("playback audio video decode 2222 copyPixelsFromBuffer")
+                                                            mVideoOutBuffer?.let { buffer ->
+//                                                                d("playback audio video decode 333 copyPixelsFromBuffer")
                                                                 bmp?.copyPixelsFromBuffer(buffer)
                                                             }
                                                         }
@@ -874,7 +959,7 @@ class DecodeVideoJob(
                                                 avChannel?.videoFPS = (avChannel?.videoFPS ?: 0) + 1
 //                                                emit(bmp)
 //                                                emit(avFrame.timestamp)
-                                                if(videoDecodeResult >= 0){
+                                                if (videoDecodeResult >= 0) {
                                                     emit(
                                                         DecoderVideoInfo(
                                                             bmp,
@@ -957,6 +1042,8 @@ class DecodeVideoJob(
                 mVideoBuffer = null
                 mVideoOutBuffer = null
                 mVideoDecoder = null
+
+                bufOut = null
 
                 if (mpegtIsInit) {
                     DecMpeg4.UninitDecoder()
@@ -1121,7 +1208,7 @@ internal object LocalRecordHelper {
                     avChannel.setAudioTrackStatus(mContext?.get(), avChannel.audioPlayStatus, true)
                 }
 //                delay(500)
-                if(codeId == AVFrame.MEDIA_CODEC_VIDEO_H265){
+                if (codeId == AVFrame.MEDIA_CODEC_VIDEO_H265) {
                     var delaycount = 0
                     while (!canRecording) {
                         delay(5)

@@ -126,15 +126,27 @@ class AVFrame(
         if (frameHead.size > 4) {
             onlineNum = frameHead[4]
         }
-        this.playmode = playmode
+        this.playmode = playbacmmode
+
+//        timestamp = Packet.byteArrayToInt_Little(frameHead, 12)
         timestamp = if (playbacmmode == Camera.AUDIORECORD_LIVEMODE) {
             Packet.byteArrayToInt_Little(frameHead, 12)
         } else {
             Packet.byteArrayToInt_Little(frameHead, 8)
         }
-
+//        if (playbacmmode == Camera.AUDIORECORD_LIVEMODE && timestamp == 0) {
+//            timestamp = Packet.byteArrayToInt_Little(frameHead, 8)
+//        }
         if (frameHead.size >= 24) {
             deviceCurrentTime = Packet.byteArrayToLong(frameHead, false, 16)
+        }
+        Liotc.d(
+            "AVFrame",
+            "frameHead size=${frameHead.size}  c${deviceCurrentTime}  time=${timestamp}"
+        )
+
+        if (deviceCurrentTime == 0L) {
+            deviceCurrentTime = timestamp.toLong()
         }
 
         videoWidth = Packet.byteArrayToInt_Little(frameHead, 16)

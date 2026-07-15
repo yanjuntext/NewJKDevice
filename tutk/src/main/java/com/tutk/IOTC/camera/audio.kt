@@ -7,6 +7,7 @@ import androidx.annotation.RequiresPermission
 import com.decoder.util.G711Code
 import com.tutk.IOTC.*
 import com.tutk.IOTC.camera.*
+import com.tutk.IOTC.status.PlayMode
 import com.tutk.IOTC.status.VoiceType
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.flow
@@ -132,7 +133,7 @@ class RecvAudioJob(
                 var lastPcmTime = 0L
                 var audioChannel = -1
                 var audioDatabits = -1
-
+//                avChannel?.lastAudioPlaybackTimeStamp = -1
 //                while (isRunning && isActive && (avChannel?.audioPlayStatus == true || LocalRecordHelper.recording)) {
                 while (isRunning && isActive && (avChannel?.isAudioPlaying() == true || LocalRecordHelper.recording)) {
 //                    while ((avChannel?.audioPlayStatus == true || LocalRecordHelper.recording) && isActive) {
@@ -156,6 +157,7 @@ class RecvAudioJob(
                                 pFrmNo
                             )
                             d("nReadSize [$nReadSize]")
+
                             when {
                                 nReadSize > 0 -> {
                                     avChannel?.audioBPS = (avChannel?.audioBPS ?: 0) + nReadSize
@@ -171,8 +173,12 @@ class RecvAudioJob(
                                         nReadSize,
                                         mPlayMode
                                     )
+//                                    avChannel?.lastAudioPlaybackTimeStamp = frame.timestamp
                                     mCodecId = frame.codec_id.toInt()
+//                                    if(mPlayMode == PlayMode.PLAY_BACK.value){
 
+                                    d("playback audio time=${frame.timestamp} --- mode=${mPlayMode}")
+//                                    }
                                     d("nCodecId[$mCodecId]")
 
 //                                    if (isTwoWayVoiceType() && mPlayMode != Camera.AUDIORECORD_PLAYBACKMODE) {
@@ -272,7 +278,7 @@ class RecvAudioJob(
                                             mFirst = false
                                         }
                                     }
-                                    if(audioDatabits != -1 && audioChannel != -1){
+                                    if (audioDatabits != -1 && audioChannel != -1) {
                                         LocalRecordHelper.setAudioEnvironment(
                                             mSamplerate,
                                             if (mChannel == 0) 1 else 2,
@@ -296,6 +302,17 @@ class RecvAudioJob(
                                         }
 
                                     }
+
+                                    if (avChannel?.playMode == PlayMode.PLAY_BACK) {
+                                        val offset =
+                                            frame.timestamp - avChannel.lastAudioPlaybackTimeStamp
+
+                                        d("playback audio offset=${offset}  aTime=${frame.timestamp} vTime=${avChannel.lastAudioPlaybackTimeStamp}")
+                                        if (offset >= 100 && avChannel.lastAudioPlaybackTimeStamp > 0) {
+                                            d("playback audio **** delay")
+                                            delay((offset - 5).toLong())
+                                        }
+                                    }
                                     when (mCodecId) {
                                         AVFrame.MEDIA_CODEC_AUDIO_PCM -> {
                                             if (nReadSize > 0) {
@@ -311,43 +328,79 @@ class RecvAudioJob(
                                                         if (avChannel.camera?.isPcmAudioRecvSize800 == true) {
                                                             //PCM 格式音频强制使用800
 
-                                                            var playTotalSize = nReadSize + cachePcmAudiSize
+                                                            var playTotalSize =
+                                                                nReadSize + cachePcmAudiSize
                                                             var start = 0
-                                                            if(playTotalSize < 800){
-                                                                System.arraycopy(values,0,cachePcmAudiBuffer,cachePcmAudiSize,nReadSize)
-                                                                cachePcmAudiSize+=nReadSize
-                                                            }else{
-                                                                while (playTotalSize >= 800){
+                                                            if (playTotalSize < 800) {
+                                                                System.arraycopy(
+                                                                    values,
+                                                                    0,
+                                                                    cachePcmAudiBuffer,
+                                                                    cachePcmAudiSize,
+                                                                    nReadSize
+                                                                )
+                                                                cachePcmAudiSize += nReadSize
+                                                            } else {
+                                                                while (playTotalSize >= 800) {
                                                                     val pcmValue = ByteArray(800)
                                                                     var total = 0
-                                                                    if(cachePcmAudiSize != 0){
-                                                                        System.arraycopy(cachePcmAudiBuffer,0,pcmValue,0,cachePcmAudiSize)
+                                                                    if (cachePcmAudiSize != 0) {
+                                                                        System.arraycopy(
+                                                                            cachePcmAudiBuffer,
+                                                                            0,
+                                                                            pcmValue,
+                                                                            0,
+                                                                            cachePcmAudiSize
+                                                                        )
                                                                     }
-                                                                    total+=cachePcmAudiSize
-                                                                    val offset = 800 - cachePcmAudiSize
+                                                                    total += cachePcmAudiSize
+                                                                    val offset =
+                                                                        800 - cachePcmAudiSize
 
-                                                                    if(start + offset < nReadSize){
-                                                                        System.arraycopy(values,start,pcmValue,cachePcmAudiSize,offset)
-                                                                        start+=offset
-                                                                        total+=offset
-                                                                    }else{
-                                                                        val length = nReadSize-start
-                                                                        System.arraycopy(values,start,pcmValue,cachePcmAudiSize,length)
-                                                                        start+=length
-                                                                        total+=length
+                                                                    if (start + offset < nReadSize) {
+                                                                        System.arraycopy(
+                                                                            values,
+                                                                            start,
+                                                                            pcmValue,
+                                                                            cachePcmAudiSize,
+                                                                            offset
+                                                                        )
+                                                                        start += offset
+                                                                        total += offset
+                                                                    } else {
+                                                                        val length =
+                                                                            nReadSize - start
+                                                                        System.arraycopy(
+                                                                            values,
+                                                                            start,
+                                                                            pcmValue,
+                                                                            cachePcmAudiSize,
+                                                                            length
+                                                                        )
+                                                                        start += length
+                                                                        total += length
                                                                     }
-                                                                    d("putPlayData total=$total start=$start lastPcmTime=$lastPcmTime c=${frame.timestamp.toLong()} o=${frame.timestamp.toLong()-lastPcmTime}")
+                                                                    d("putPlayData total=$total start=$start lastPcmTime=$lastPcmTime c=${frame.timestamp.toLong()} o=${frame.timestamp.toLong() - lastPcmTime}")
                                                                     avChannel?.putPlayData(
                                                                         pcmValue,
                                                                         total,
                                                                         frame.timestamp.toLong()
                                                                     )
-                                                                    if(cachePcmAudiSize != 0) cachePcmAudiSize = 0
-                                                                    playTotalSize-=total
-                                                                    if(playTotalSize < 800){
-                                                                        lastPcmTime = frame.timestamp.toLong()
-                                                                        System.arraycopy(values,start,cachePcmAudiBuffer,0,playTotalSize)
-                                                                        cachePcmAudiSize = playTotalSize
+                                                                    if (cachePcmAudiSize != 0) cachePcmAudiSize =
+                                                                        0
+                                                                    playTotalSize -= total
+                                                                    if (playTotalSize < 800) {
+                                                                        lastPcmTime =
+                                                                            frame.timestamp.toLong()
+                                                                        System.arraycopy(
+                                                                            values,
+                                                                            start,
+                                                                            cachePcmAudiBuffer,
+                                                                            0,
+                                                                            playTotalSize
+                                                                        )
+                                                                        cachePcmAudiSize =
+                                                                            playTotalSize
                                                                     }
                                                                 }
                                                             }
@@ -462,6 +515,7 @@ class RecvAudioJob(
                                 }
 
                                 else -> {
+//                                    avChannel?.lastAudioPlaybackTimeStamp = -1
                                     delay(
                                         if (mFPS == 0) 33L else (1000 / mFPS).toLong()
                                     )
