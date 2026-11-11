@@ -13,21 +13,24 @@ android {
 //        applicationId "com.tutk.IOTC"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 34
-        versionName "2.1.34"
+        versionCode 36
+        versionName "2.1.36"
         //2304 * 1296
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
-
     }
 
     buildTypes {
         release {
+            // 库自身不混淆：library 模块 R8 混淆时 kotlin.Metadata 属于外部依赖类
+            // （不在 program 输入中），keep 规则无法保留它，会导致 @Metadata 被剥离，
+            // 下游 Kotlin 编译器无法解析扩展函数（Unresolved reference）。
+            // 正确做法：库原样发布，由下游 App 混淆时通过 consumerProguardFiles 保护。
             minifyEnabled false
-//            consumerProguardFiles('proguard-rules.pro')
+            consumerProguardFiles('proguard-rules.pro')
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -116,7 +119,7 @@ android {
 }
 afterEvaluate {
     publishing {
-        def versionName = "2.1.43" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
+        def versionName = "2.1.45" // 当前版本依赖库版本号，这个jitpack不会使用到，只是我们开发者自己查看
         publications {
             // Creates a Maven publication called "release".
             release(MavenPublication) {

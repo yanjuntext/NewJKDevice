@@ -1356,6 +1356,7 @@ class PlaybackMonitorVer @JvmOverloads constructor(
                     }
 
                     PlaybackStatus.SEEKTIME -> {
+                        mPlaybackStatus = PlaybackStatus.PLAYING
                         mVideoPlayTime = mSeekTime
                     }
 //                    PlaybackStatus.ERROR->{

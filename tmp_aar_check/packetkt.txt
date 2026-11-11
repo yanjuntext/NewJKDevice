@@ -1,0 +1,262 @@
+Classfile /d:/wyj-git/NewJKDevice/tmp_aar_check/com/tutk/IOTC/PacketKt.class
+  Last modified 1981-1-1; size 1758 bytes
+  MD5 checksum abc5add93f21408b745b37a93123ad01
+  Compiled from "SourceFile"
+public final class com.tutk.IOTC.PacketKt
+  minor version: 0
+  major version: 52
+  flags: ACC_PUBLIC, ACC_FINAL
+Constant pool:
+   #1 = Utf8               ~~R8{\"backend\":\"cf\",\"compilation-mode\":\"release\",\"has-checksums\":false,\"pg-map-id\":\"1a4ceff\",\"r8-mode\":\"compatibility\",\"version\":\"3.1.66\"}
+   #2 = String             #1             // ~~R8{\"backend\":\"cf\",\"compilation-mode\":\"release\",\"has-checksums\":false,\"pg-map-id\":\"1a4ceff\",\"r8-mode\":\"compatibility\",\"version\":\"3.1.66\"}
+   #3 = Utf8               SourceFile
+   #4 = Utf8               com/tutk/IOTC/PacketKt
+   #5 = Class              #4             // com/tutk/IOTC/PacketKt
+   #6 = Utf8               java/lang/Object
+   #7 = Class              #6             // java/lang/Object
+   #8 = Utf8               littleByteArray
+   #9 = Utf8               (I)[B
+  #10 = Utf8               Lorg/jetbrains/annotations/NotNull;
+  #11 = Utf8               com/tutk/IOTC/Packet
+  #12 = Class              #11            // com/tutk/IOTC/Packet
+  #13 = Utf8               INSTANCE
+  #14 = Utf8               Lcom/tutk/IOTC/Packet;
+  #15 = NameAndType        #13:#14        // INSTANCE:Lcom/tutk/IOTC/Packet;
+  #16 = Fieldref           #12.#15        // com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+  #17 = Utf8               intToByteArray_Little
+  #18 = NameAndType        #17:#9         // intToByteArray_Little:(I)[B
+  #19 = Methodref          #12.#18        // com/tutk/IOTC/Packet.intToByteArray_Little:(I)[B
+  #20 = Utf8               bigByteArray
+  #21 = Utf8               intToByteArray_Big
+  #22 = NameAndType        #21:#9         // intToByteArray_Big:(I)[B
+  #23 = Methodref          #12.#22        // com/tutk/IOTC/Packet.intToByteArray_Big:(I)[B
+  #24 = Utf8               (S)[B
+  #25 = Utf8               shortToByteArray_little
+  #26 = NameAndType        #25:#24        // shortToByteArray_little:(S)[B
+  #27 = Methodref          #12.#26        // com/tutk/IOTC/Packet.shortToByteArray_little:(S)[B
+  #28 = Utf8               shortToByteArray_Big
+  #29 = NameAndType        #28:#24        // shortToByteArray_Big:(S)[B
+  #30 = Methodref          #12.#29        // com/tutk/IOTC/Packet.shortToByteArray_Big:(S)[B
+  #31 = Utf8               (J)[B
+  #32 = Utf8               longToByteArray_Little
+  #33 = NameAndType        #32:#31        // longToByteArray_Little:(J)[B
+  #34 = Methodref          #12.#33        // com/tutk/IOTC/Packet.longToByteArray_Little:(J)[B
+  #35 = Utf8               longToByteArray_Big
+  #36 = NameAndType        #35:#31        // longToByteArray_Big:(J)[B
+  #37 = Methodref          #12.#36        // com/tutk/IOTC/Packet.longToByteArray_Big:(J)[B
+  #38 = Utf8               littleInt
+  #39 = Utf8               ([BI)I
+  #40 = Utf8               <this>
+  #41 = String             #40            // <this>
+  #42 = Utf8               kotlin/jvm/internal/Intrinsics
+  #43 = Class              #42            // kotlin/jvm/internal/Intrinsics
+  #44 = Utf8               checkNotNullParameter
+  #45 = Utf8               (Ljava/lang/Object;Ljava/lang/String;)V
+  #46 = NameAndType        #44:#45        // checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+  #47 = Methodref          #43.#46        // kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+  #48 = Utf8               byteArrayToInt_Little
+  #49 = NameAndType        #48:#39        // byteArrayToInt_Little:([BI)I
+  #50 = Methodref          #12.#49        // com/tutk/IOTC/Packet.byteArrayToInt_Little:([BI)I
+  #51 = Utf8               bigInt
+  #52 = Utf8               byteArrayToInt_big
+  #53 = NameAndType        #52:#39        // byteArrayToInt_big:([BI)I
+  #54 = Methodref          #12.#53        // com/tutk/IOTC/Packet.byteArrayToInt_big:([BI)I
+  #55 = Utf8               littleShort
+  #56 = Utf8               ([BI)S
+  #57 = Utf8               byteArrayToShort_Little
+  #58 = NameAndType        #57:#56        // byteArrayToShort_Little:([BI)S
+  #59 = Methodref          #12.#58        // com/tutk/IOTC/Packet.byteArrayToShort_Little:([BI)S
+  #60 = Utf8               littleLong
+  #61 = Utf8               ([BI)J
+  #62 = Utf8               byteArrayToLong_Little
+  #63 = NameAndType        #62:#61        // byteArrayToLong_Little:([BI)J
+  #64 = Methodref          #12.#63        // com/tutk/IOTC/Packet.byteArrayToLong_Little:([BI)J
+  #65 = Utf8               shortArray
+  #66 = Utf8               (I)[S
+  #67 = Utf8               intToShort
+  #68 = NameAndType        #67:#66        // intToShort:(I)[S
+  #69 = Methodref          #12.#68        // com/tutk/IOTC/Packet.intToShort:(I)[S
+  #70 = Utf8               Code
+  #71 = Utf8               LineNumberTable
+  #72 = Utf8               RuntimeInvisibleAnnotations
+  #73 = Utf8               RuntimeInvisibleParameterAnnotations
+{
+  public static final byte[] littleByteArray(int);
+    descriptor: (I)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=2, locals=1, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: iload_0
+         4: invokevirtual #19                 // Method com/tutk/IOTC/Packet.intToByteArray_Little:(I)[B
+         7: areturn
+      LineNumberTable:
+        line 1: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final byte[] bigByteArray(int);
+    descriptor: (I)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=2, locals=1, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: iload_0
+         4: invokevirtual #23                 // Method com/tutk/IOTC/Packet.intToByteArray_Big:(I)[B
+         7: areturn
+      LineNumberTable:
+        line 1: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final byte[] littleByteArray(short);
+    descriptor: (S)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=2, locals=1, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: iload_0
+         4: invokevirtual #27                 // Method com/tutk/IOTC/Packet.shortToByteArray_little:(S)[B
+         7: areturn
+      LineNumberTable:
+        line 2: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final byte[] bigByteArray(short);
+    descriptor: (S)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=2, locals=1, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: iload_0
+         4: invokevirtual #30                 // Method com/tutk/IOTC/Packet.shortToByteArray_Big:(S)[B
+         7: areturn
+      LineNumberTable:
+        line 2: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final byte[] littleByteArray(long);
+    descriptor: (J)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: lload_0
+         4: invokevirtual #34                 // Method com/tutk/IOTC/Packet.longToByteArray_Little:(J)[B
+         7: areturn
+      LineNumberTable:
+        line 3: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final byte[] bigByteArray(long);
+    descriptor: (J)[B
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: lload_0
+         4: invokevirtual #37                 // Method com/tutk/IOTC/Packet.longToByteArray_Big:(J)[B
+         7: areturn
+      LineNumberTable:
+        line 3: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+
+  public static final int littleInt(byte[], int);
+    descriptor: ([BI)I
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=2
+         0: aload_0
+         1: ldc           #41                 // String <this>
+         3: invokestatic  #47                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+         6: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         9: aload_0
+        10: iload_1
+        11: invokevirtual #50                 // Method com/tutk/IOTC/Packet.byteArrayToInt_Little:([BI)I
+        14: ireturn
+      LineNumberTable:
+        line 1: 6
+    RuntimeInvisibleParameterAnnotations:
+      0:
+        0: #10()
+      1:
+
+  public static final int bigInt(byte[], int);
+    descriptor: ([BI)I
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=2
+         0: aload_0
+         1: ldc           #41                 // String <this>
+         3: invokestatic  #47                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+         6: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         9: aload_0
+        10: iload_1
+        11: invokevirtual #54                 // Method com/tutk/IOTC/Packet.byteArrayToInt_big:([BI)I
+        14: ireturn
+      LineNumberTable:
+        line 1: 6
+    RuntimeInvisibleParameterAnnotations:
+      0:
+        0: #10()
+      1:
+
+  public static final short littleShort(byte[], int);
+    descriptor: ([BI)S
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=2
+         0: aload_0
+         1: ldc           #41                 // String <this>
+         3: invokestatic  #47                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+         6: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         9: aload_0
+        10: iload_1
+        11: invokevirtual #59                 // Method com/tutk/IOTC/Packet.byteArrayToShort_Little:([BI)S
+        14: ireturn
+      LineNumberTable:
+        line 1: 6
+    RuntimeInvisibleParameterAnnotations:
+      0:
+        0: #10()
+      1:
+
+  public static final long littleLong(byte[], int);
+    descriptor: ([BI)J
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=3, locals=2, args_size=2
+         0: aload_0
+         1: ldc           #41                 // String <this>
+         3: invokestatic  #47                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+         6: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         9: aload_0
+        10: iload_1
+        11: invokevirtual #64                 // Method com/tutk/IOTC/Packet.byteArrayToLong_Little:([BI)J
+        14: lreturn
+      LineNumberTable:
+        line 1: 6
+    RuntimeInvisibleParameterAnnotations:
+      0:
+        0: #10()
+      1:
+
+  public static final short[] shortArray(int);
+    descriptor: (I)[S
+    flags: ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=2, locals=1, args_size=1
+         0: getstatic     #16                 // Field com/tutk/IOTC/Packet.INSTANCE:Lcom/tutk/IOTC/Packet;
+         3: iload_0
+         4: invokevirtual #69                 // Method com/tutk/IOTC/Packet.intToShort:(I)[S
+         7: areturn
+      LineNumberTable:
+        line 1: 0
+    RuntimeInvisibleAnnotations:
+      0: #10()
+}
+SourceFile: "SourceFile"

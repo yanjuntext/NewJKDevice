@@ -13,6 +13,7 @@ import com.tutk.IOTC.listener.OnResultCallback
 import com.tutk.IOTC.status.PlayMode
 import com.tutk.IOTC.status.RecordStatus
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.lang.ref.WeakReference
@@ -197,6 +198,7 @@ class RecvVideoJob(
 
                         when {
                             nReadSize >= 0 -> {
+                                i(TAG,"RecvVideoJob recv frame")
                                 avChannel?.videoBPS = (avChannel?.videoBPS ?: 0) + outBufSize[0]
                                 nFrmCount++
 
@@ -454,6 +456,9 @@ class RecvVideoJob(
                 //移除视频缓存
                 AVAPIs.avClientCleanLocalVideoBuf(getAvIndex())
             }.flowOn(Dispatchers.IO)
+                .catch {
+                    e(TAG,"RecvVideoJob catch -----")
+                }
                 .collect {
 
                     when (it.eventType) {
@@ -909,6 +914,7 @@ class DecodeVideoJob(
                                                     } else {
 //                                                        d("playback audio video decode copyPixelsFromBuffer")
                                                         if (videoWidth * videoHeight * 4 <= MAX_FRAMEBUF) {
+                                                            i("DecodeVideoJob decode bitmap")
 //                                                            d("playback audio video decode 2222 copyPixelsFromBuffer")
                                                             mVideoOutBuffer?.let { buffer ->
 //                                                                d("playback audio video decode 333 copyPixelsFromBuffer")
@@ -1052,6 +1058,9 @@ class DecodeVideoJob(
                 avChannel?.VideoFrameQueue?.removeAll()
 
             }.flowOn(Dispatchers.IO)
+                .catch {
+                    e("DecodeVideoJob catch -----")
+                }
                 .collect {
                     iavChannelStatus?.onAVChannelReceiverFrameData(
                         avChannel?.mChannel ?: -1,

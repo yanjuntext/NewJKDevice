@@ -247,6 +247,8 @@ class PlaybackMonitor @JvmOverloads constructor(
                         newRecordEvent = null
                         newRecordEventDuration = 0
                         newRecordEventIndex = 0
+                        mLastFrame = null
+                        isReleaseCanvas = true
                         Liotc.d(TAG, "restartPlayback handleMessage mAvChannel=$mAvChannel")
                         if (mAvChannel < 0) {
                             Liotc.d(
@@ -385,6 +387,7 @@ class PlaybackMonitor @JvmOverloads constructor(
         }
         destroyRendjob()
         stop()
+        isReleaseCanvas = true
         if (mCamera == null) {
             mCamera = camera
             mCamera?.registerSessionChannelCallback(this)
@@ -401,6 +404,8 @@ class PlaybackMonitor @JvmOverloads constructor(
         newRecordEvent = event
         newRecordEventDuration = duration
         newRecordEventIndex = index
+        mLastFrame = null
+        isReleaseCanvas = true
         handler.sendEmptyMessageDelayed(OPT_RESTART_NEW_EVENT, delay)
         Liotc.d(TAG, "restartPlayback 4444 isRestartPlayback=$isRestartPlayback")
     }
@@ -660,16 +665,10 @@ class PlaybackMonitor @JvmOverloads constructor(
         isRecording = false
     }
 
-
+    private var isReleaseCanvas = false
     private fun renderJob() {
         kotlin.runCatching {
             Liotc.d("PlaybackMonitor", "renderJob is Running[$isRunning]")
-//            if (isRunning && mMonitorThread?.isThreadRunning() == true) {
-//                Liotc.d("PlaybackMonitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
-//                return
-//            }
-//            Liotc.d("PlaybackMonitor", "renderJob surfaceDestroyed 1 renderJob=$canDraw")
-//            if (!canDraw) return
             Liotc.d("PlaybackMonitor", "renderJob running")
             isRunning = true
 
@@ -690,7 +689,38 @@ class PlaybackMonitor @JvmOverloads constructor(
                         if (!isThreadRunning()) {
                             break
                         }
-                        if (mLastFrame != null && mLastFrame?.isRecycled == false && canDraw) {
+                        if(isReleaseCanvas){
+                            Liotc.d(
+                                "PlaybackMonitor",
+                                "renderJob -----isReleaseCanvas==00"
+                            )
+                            // 关键：没有可用帧时，主动清屏，覆盖掉残留的上一帧
+                            try {
+                                Liotc.d(
+                                    "PlaybackMonitor",
+                                    "renderJob -----isReleaseCanvas==111"
+                                )
+                                videoCanvas = mSurHolder?.lockCanvas()
+                                videoCanvas?.drawColor(Color.BLACK)
+                                videoCanvas?.let { mSurHolder?.unlockCanvasAndPost(it) }
+                                Liotc.d(
+                                    "PlaybackMonitor",
+                                    "renderJob -----isReleaseCanvas==222"
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                                videoCanvas?.let {
+                                    if (this@PlaybackMonitor.canDraw) {
+                                        mSurHolder?.unlockCanvasAndPost(it)
+                                    }
+                                }
+                                Liotc.d(
+                                    "PlaybackMonitor",
+                                    "renderJob -----isReleaseCanvas==333"
+                                )
+                            }
+                            isReleaseCanvas = false
+                        }else if (mLastFrame != null && mLastFrame?.isRecycled == false && canDraw) {
                             try {
                                 videoCanvas = mSurHolder?.lockCanvas()
                                 videoCanvas?.let { canvas ->
@@ -721,54 +751,14 @@ class PlaybackMonitor @JvmOverloads constructor(
 
                     Liotc.d("PlaybackMonitor", "renderJob end")
                 }
+
+
             }
             mMonitorThread?.start()
 
         }.onFailure {
 
         }
-//        if (isRunning && mRenderJob?.isActive == true) {
-//            Liotc.d("PlaybackMonitor", "renderJob is Running return [$isRunning],[${mRenderJob?.isActive}]")
-//            return
-//        }
-//        Liotc.d("PlaybackMonitor", "renderJob running")
-//        isRunning = true
-//        mRenderJob = GlobalScope.launch(Dispatchers.IO) {
-//
-//            var videoCanvas: Canvas? = null
-//            mPaint.isDither = true
-//
-//            while (isRunning && mRenderJob?.isActive == true) {
-//                Liotc.d(
-//                    "PlaybackMonitor",
-//                    "renderJob -----[${mLastZoomTime != null}],[${mLastFrame?.isRecycled == false}]"
-//                )
-//                if (mLastFrame != null && mLastFrame?.isRecycled == false) {
-//                    try {
-//                        videoCanvas = mSurHolder?.lockCanvas()
-//                        videoCanvas?.let { canvas ->
-//                            canvas.drawColor(Color.BLACK)
-//                            mLastFrame?.let { bitmap ->
-//                                Liotc.d("PlaybackMonitor", "drawBitmap")
-//                                canvas.drawBitmap(bitmap, null, mRectCanvas, mPaint)
-//                            }
-//                        }
-//                    } catch (e: Exception) {
-//                        e.printStackTrace()
-//                    } finally {
-//                        videoCanvas?.let {
-//                            if(canDraw){
-//                                mSurHolder?.unlockCanvasAndPost(it)
-//                            }
-//                        }
-//                        videoCanvas = null
-//                    }
-//                }
-//                delay(33L)
-//            }
-//            Liotc.d("PlaybackMonitor", "renderJob end")
-//            isRunning = false
-//        }
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
@@ -1397,7 +1387,7 @@ class PlaybackMonitor @JvmOverloads constructor(
                     }
 
                     PlaybackStatus.SEEKTIME -> {
-
+                        mPlaybackStatus = PlaybackStatus.PLAYING
                         mVideoPlayTime = mSeekTime
                     }
 //                    PlaybackStatus.ERROR->{

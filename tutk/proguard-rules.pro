@@ -1,234 +1,111 @@
-# Add project specific ProGuard rules here.
+# ============================================================
+# TUTK IoT SDK 混淆规则
+# ============================================================
 
-# By default, the flags in this file are appended to flags specified
+# 保留行号/源文件名信息，便于崩溃日志定位
+-keepattributes SourceFile, LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# in D:\android\sdk/tools/proguard/proguard-android.txt
+# 保留注解、内部类与泛型签名信息
+-keepattributes *Annotation*, InnerClasses, Signature
+-keepattributes RuntimeVisibleAnnotations, RuntimeInvisibleAnnotations
 
-# You can edit the include path and order by changing the proguardFiles
+# 保留 Kotlin Metadata 注解类。
+# 关键：R8 混淆时若 kotlin.Metadata 类未显式保留，会剥离所有类上的 @Metadata 注解。
+# 而下游 Kotlin 编译器解析扩展函数/顶层函数（如 ByteArray.littleByteArray()、
+# ByteArray.getUtfString2()）完全依赖 @Metadata，注解丢失即报 Unresolved reference。
+-keep class kotlin.Metadata { *; }
+-keep class kotlin.annotation.AnnotationRetention { *; }
 
-# directive in build.gradle.
-
-#
-
-# For more details, see
-
-#  http://developer.android.com/guide/developing/tools/proguard.html
-
-# Add any project specific keep options here:
-
-# If your project uses WebView with JS, uncomment the following
-
-# and specify the fully qualified class name to the JavaScript interface
-
-# class:
-
-#-keep classmembers class fqcn.of.javascript.interface.for.webview {
-
-#  public *;
-
-#}
-
-# Uncomment this to preserve the line number information for
-
-# debugging stack traces.
-
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-
-# hide the original source file name.
-
-#-renamesourcefileattribute SourceFile
-
-#-------------------------------------------定制化区域----------------------------------------------
--keepclassmembers class com.tutk.utils.**
--dontwarn com.tutk.utils.**
-
--keepclassmembers class com.tutk.io.ParseKt
--dontwarn class com.tutk.io.ParseKt
-
--keepclassmembers class com.tutk.io.SendKt
--dontwarn class com.tutk.io.SendKt
-
--keepclassmembers class com.jkapp.android.media.*{*;}
-
--keepclassmembers class com.tutk.IOTC.listener.**
-
--keepclassmembers class com.tutk.IOTC.Packet
--keepclassmembers class com.tutk.IOTC.camera.AVChannel{
-  #保持该类下所有的共有内容不被混淆
-   public *;
-}
--keepclassmembers class com.tutk.IOTC.camera.RecvAudioJob{
-    #保持该类下所有的共有内容不被混淆
-    public *;
-}
-
--keepclassmembers class com.tutk.IOTC.Camera{
-     *;
-}
-
--keepclassmembers class com.tutk.IOTC.camera.DownFileJob{
-     *;
-}
-
--keepclassmembers class com.tutk.IOTC.camera.* {
-     *;
-}
-
--keepclassmembers interface com.tutk.IOTC.listener.* {
-    *;
-}
-
--keepclassmembers class com.tutk.IOTC.player.* {
-    public *;
-}
-
--keepclassmembers class com.tutk.** {
-    public *;
-}
--dontwarn com.tutk.**
-
--keepclassmembers class com.tutk.IOTC.Camera{*;}
--dontwarn com.decoder.**
-
--keepclassmembers class com.decoder.**{*;}
--dontwarn com.encoder.**
-
--keepclassmembers class com.encoder.** {*;}
-
--keepclassmembers class com.jkapp.** {*;}
--dontwarn com.jkapp.**
-
--keepclassmembers class com.tutk.IOTC.St_SInfoEx {
-    *;
-}
--keep class com.tutk.IOTC.St_SInfoEx{*;}
-
-#---------------------------------1.实体类---------------------------------
--keep class com.tutk.bean.TBean.*{*;}
--keep class com.tutk.bean.TSupportStream.*{*;}
--keep class com.tutk.bean.TSetMotionDetect.*{*;}
--keep class com.tutk.bean.TDeviceInfo.*{*;}
--keep class com.tutk.bean.TScanWifi.*{*;}
--keep class com.tutk.bean.TWifiInfo.*{*;}
--keep class com.tutk.bean.TRecordMode.*{*;}
--keep class com.tutk.bean.TRecordModeWithTime.*{*;}
--keep class com.tutk.bean.TRecordQuality.*{*;}
--keep class com.tutk.bean.TRecordVideoInfo.*{*;}
--keep class com.tutk.bean.TEvent.*{*;}
--keep class com.tutk.bean.TTimeZone.*{*;}
--keep class com.tutk.bean.TDevicePushServiceUrl.*{*;}
--keep class com.tutk.bean.TLedStatus.*{*;}
--keep class com.tutk.bean.TCameraStatus.*{*;}
--keep class com.tutk.bean.TIRLedStatus.*{*;}
--keep class com.tutk.bean.TGetVideoMirror.*{*;}
--keep class com.tutk.bean.TSetVideoMirror.*{*;}
--keep class com.tutk.bean.TFormatSdCard.*{*;}
--keep class com.tutk.bean.TPlayback.*{*;}
-#-------------------------------------------------------------------------
-
-# 设置混淆的压缩比率 0 ~ 7
--optimizationpasses 5
-# 混淆时不使用大小写混合，混淆后的类名为小写
--dontusemixedcaseclassnames
-# 指定不去忽略非公共库的类
--dontskipnonpubliclibraryclasses
-# 指定不去忽略非公共库的成员
--dontskipnonpubliclibraryclassmembers
-# 混淆时不做预校验
--dontpreverify
-# 混淆时不记录日志
--verbose
-# 忽略警告
-#-ignorewarning
-# 代码优化
--dontshrink
-# 不优化输入的类文件
--dontoptimize
-# 保留注解不混淆
--keepattributes *Annotation*,InnerClasses
-# 避免混淆泛型
--keepattributes Signature
-# 保留代码行号，方便异常信息的追踪
--keepattributes SourceFile,LineNumberTable
-# 混淆采用的算法
--optimizations !code/simplification/cast,!field/*,!class/merging/*
-
-# dump.txt文件列出apk包内所有class的内部结构
--dump class_files.txt
-# seeds.txt文件列出未混淆的类和成员
--printseeds seeds.txt
-# usage.txt文件列出从apk中删除的代码
--printusage unused.txt
-# mapping.txt文件列出混淆前后的映射
--printmapping mapping.txt
-
-#不需混淆的Android类
--keep public class * extends android.app.Fragment
--keep public class * extends android.app.Activity
--keep public class * extends android.app.Application
--keep public class * extends android.app.Service
--keep public class * extends android.content.BroadcastReceiver
--keep public class * extends android.preference.Preference
--keep public class * extends android.content.ContentProvider
--keep public class * extends android.app.backup.BackupAgentHelper
--keep public class * extends android.preference.Preference
--keep public class * extends android.view.View
-#support下的所有类及其内部类
--keep class androidx.** {*;}
--keep interface androidx.** {*;}
--keep class * extends androidx.**  { *; }
--dontwarn androidx.**
-
-#design库
--keep class com.google.android.material.** {*;}
--dontwarn com.google.android.material.**
--dontnote com.google.android.material.**
-#避免资源混淆
--keep class **.R$* {*;}
-#避免混淆枚举类
--keepclassmembers enum * {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
-}
-#Natvie 方法不混淆
+# 保留所有 native 方法名（JNI 静态绑定依赖方法名）
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
--keepclassmembers interface *
+# ---------- JNI 结构体（C 层通过 JNI 读写字段，字段名不可混淆） ----------
+-keep class com.tutk.IOTC.St_* { *; }
+-keep class com.tutk.IOTC.st_* { *; }
 
--keep class com.tutk.IOTC.Camera {
-    *;
+# ---------- TUTK 核心 API（使用方直接调用的公开类） ----------
+-keep class com.tutk.IOTC.AVAPIs { *; }
+-keep class com.tutk.IOTC.IOTCAPIs { *; }
+-keep class com.tutk.IOTC.RDTAPIs { *; }
+-keep class com.tutk.IOTC.TUTKGlobalAPIs { *; }
+-keep class com.tutk.IOTC.AVAbort { *; }
+-keep class com.tutk.IOTC.LocalRecording { *; }
+-keep class com.tutk.IOTC.Camera { *; }
+-keep class com.tutk.IOTC.AVIOCTRLDEFs { *; }
+-keep class com.tutk.IOTC.RDCTRLDEFs { *; }
+-keep class com.tutk.IOTC.AVFrame { *; }
+-keep class com.tutk.IOTC.AVFrameQueue { *; }
+-keep class com.tutk.IOTC.Packet { *; }
+-keep class com.tutk.IOTC.Liotc { *; }
+-keep class com.tutk.IOTC.AudioProcess { *; }
+-keep class com.tutk.IOTC.OnLineResultCBListener { *; }
+-keep class com.tutk.IOTC.LogLevel { *; }
+-keep class com.tutk.IOTC.Region { *; }
+-keep class com.tutk.IOTC.VSaaSContractInfo { *; }
+-keep class com.tutk.IOTC.VSaaSPullStreamAttr { *; }
+-keep class com.tutk.IOTC.util.LoadLibrary { *; }
+
+# ---------- 对外 API 包（bean/监听器/通道/播放器/状态/解析/工具） ----------
+-keep class com.tutk.bean.** { *; }
+-keep class com.tutk.IOTC.listener.** { *; }
+-keep class com.tutk.IOTC.camera.** { *; }
+-keep class com.tutk.IOTC.player.** { *; }
+-keep class com.tutk.IOTC.status.** { *; }
+-keep class com.tutk.io.** { *; }
+-keep class com.tutk.utils.** { *; }
+
+# ---------- Kotlin 顶层函数/扩展函数类（*Kt） ----------
+# 扩展函数编译后生成独立静态类：file.kt -> FileKt、Packet.kt -> PacketKt、
+# AVIOCTRLDEFs.kt -> AVIOCTRLDEFsKt。这些函数（getUtfString2/littleInt/byteArray 等）
+# 是外部可直接调用的 API，方法名混淆后外部编译期即找不到符号，必须整类保留。
+# 注意：单类 keep（如 -keep ... Packet）不会覆盖对应的 *Kt 类。
+-keep class com.tutk.IOTC.camera.FileKt { *; }
+-keep class com.tutk.IOTC.PacketKt { *; }
+-keep class com.tutk.IOTC.AVIOCTRLDEFsKt { *; }
+-keepclassmembers class com.tutk.IOTC.camera.FileKt {
+   *;
+}
+-keepclassmembers class com.tutk.IOTC.PacketKt {
+   *;
+}
+-keepclassmembers class com.tutk.IOTC.AVIOCTRLDEFsKt {
+   *;
 }
 
--keep class com.decoder.*{*;}
+# ---------- JNI 编解码/音视频类（无 @Keep 注解，必须整类保留） ----------
+-keep class com.jkapp.android.media.VideoDecoder { *; }
+-keep class com.qxt.yuv420.LibyuvUtils { *; }
+-keep class com.encoder.util.EncSpeex { *; }
+-keep class com.decoder.util.DecMpeg4 { *; }
+-keep class com.tutk.libSLC.AcousticEchoCanceler { *; }
 
--keep class com.encoder.*{*;}
+# ---------- WebRTC/AEC 桥接层 ----------
+-keep class com.tutk.webtrc.** { *; }
 
--keep class com.jkapp.*{*;}
+# ---------- 第三方库（libs/*.jar，保留以免破坏其内部调用/反射） ----------
+-keep class com.ingenic.** { *; }
+-keep class com.android.aec.** { *; }
+-keep class com.tutk.liblocalrecorder.** { *; }
+-keep class com.tutk.libmediaconvert.** { *; }
+-keep class com.google.protobuf.** { *; }
 
-#kotlin 相关
--dontwarn kotlin.**
--keep class kotlin.** { *; }
--keep interface kotlin.** { *; }
--keepclassmembers class kotlin.Metadata {
-    public <methods>;
+# ---------- 枚举 values/valueOf 兜底 ----------
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
 }
--keepclasseswithmembers @kotlin.Metadata class * { *; }
--keepclassmembers class **.WhenMappings {
-    <fields>;
-}
--assumenosideeffects class kotlin.jvm.internal.Intrinsics {
-    static void checkParameterIsNotNull(java.lang.Object, java.lang.String);
-}
 
--keep class kotlinx.** { *; }
--keep interface kotlinx.** { *; }
--dontwarn kotlinx.**
--dontnote kotlinx.serialization.SerializationKt
+# 缺失引用警告忽略
+-dontwarn com.ingenic.**
+-dontwarn com.android.aec.**
+-dontwarn com.google.protobuf.**
+-dontwarn com.tutk.liblocalrecorder.**
+-dontwarn com.tutk.libmediaconvert.**
 
--keep class org.jetbrains.** { *; }
--keep interface org.jetbrains.** { *; }
--dontwarn org.jetbrains.**
+# 禁用代码压缩（shrink），仅做混淆重命名。
+# 本库大量使用 JNI/反射，且作为 JitPack 依赖供第三方调用，
+# 保守起见不删除未直接引用的代码，避免误删被反射使用的类。
+-dontshrink
